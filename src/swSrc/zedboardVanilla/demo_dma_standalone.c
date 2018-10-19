@@ -90,7 +90,7 @@ static volatile int TxDone;
 static volatile int RxDone;
 static volatile int Error;
 
-int demo_dma_loopback(void)
+int demo_dma_standalone(void)
 {
 	int Status;
 	XAxiDma_Config *Config;
