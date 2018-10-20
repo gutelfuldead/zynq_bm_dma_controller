@@ -176,7 +176,7 @@ int axisDmaCtrl_sendPackets(uint8_t * packetBuf, size_t packetSize)
 	rc = XAxiDma_BdRingAlloc(txRingPtr, reqBds, &bdPtr);
 	if (rc != XST_SUCCESS) {
 		AXISDMA_ERROR_PRINT("Failed bd alloc\r\n");
-		return E_NOBDS;
+		return E_AXISDMA_NOBDS;
 	}
 
 	BufferAddr = (UINTPTR)packetBuf;

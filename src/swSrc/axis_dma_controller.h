@@ -13,7 +13,7 @@
 
 // #define AXISDMA_ENABLE_PRINTS /**< Define to enable debug printing in API */
 
-#define E_NOBDS -2 /**< returned when not enough bds can be allocated from axisDmaCtrl_sendPackets */
+#define E_AXISDMA_NOBDS -2 /**< returned when not enough bds can be allocated from axisDmaCtrl_sendPackets */
 
 /**
  * RX Callback Type

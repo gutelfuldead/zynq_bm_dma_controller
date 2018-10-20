@@ -70,7 +70,7 @@ int axis_dma_controller_sample_exec(int numTestPkts)
 
 	while(rx_count < numTestPkts && !error){
 		rc = axisDmaCtrl_sendPackets(&txPkt[0], MAX_PKT_SIZE);
-		if(rc != XST_SUCCESS && rc != E_NOBDS)
+		if(rc != XST_SUCCESS && rc != E_AXISDMA_NOBDS)
 			return XST_FAILURE;
 	}
 	sleep(1);
