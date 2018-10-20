@@ -13,16 +13,7 @@
 #include "axis_dma_controller.h"
 
 /******************** Constant Definitions **********************************/
-/*
- *  * Device hardware build related constants.
- *   */
-#define XScuGic_HANDLER	XScuGic_InterruptHandler
-#define DMA_DEV_ID	XPAR_AXIDMA_0_DEVICE_ID
-#define XScuGic_DEVICE_ID  XPAR_SCUGIC_SINGLE_DEVICE_ID
-#define RX_INTR_ID	XPAR_FABRIC_AXIDMA_0_S2MM_INTROUT_VEC_ID
-#define TX_INTR_ID	XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_VEC_ID
-
-/* THE MEMORY SECTION NEEDS TO BE MARKED NON-CACHEABLE BY THE TLB */
+/* Size of One MB as used by the TLB when marking mem area as noncacheable */
 #define ONE_MB 0x100000U
 
 /* Timeout loop counter for reset */
@@ -41,7 +32,6 @@
 	#define AXISDMA_ERROR_PRINT(fmt, args...)
 	#define AXISDMA_DEBUG_PRINT(fmt, args...) 
 #endif
-
 
 /************************** Function Prototypes ******************************/
 static void axisDmaCtrl_txIntrHandler(void *callback);
@@ -92,7 +82,7 @@ int axisDmaCtrl_init(struct axisDmaCtrl_params *paramsIn,
 		return XST_FAILURE;
 	}
 
-	config = XAxiDma_LookupConfig(DMA_DEV_ID);
+	config = XAxiDma_LookupConfig(params.axisDma_dmaDevId);
 	rc = XAxiDma_CfgInitialize(&axiDma, config);
 	if(rc){
 		AXISDMA_ERROR_PRINT("XAxiDma_CfgInitialize failed!\r\n");
@@ -118,7 +108,7 @@ int axisDmaCtrl_init(struct axisDmaCtrl_params *paramsIn,
 	}
 
 	/* Set up Interrupt system  */
-	rc = axisDmaCtrl_setupIntrSystem(intcInstancePtr, &axiDma, TX_INTR_ID, RX_INTR_ID);
+	rc = axisDmaCtrl_setupIntrSystem(intcInstancePtr, &axiDma, params.axisDma_txIrqId, params.axisDma_rxIrqId);
 	if (rc != XST_SUCCESS) {
 		AXISDMA_ERROR_PRINT("Failed interrupt setup\r\n");
 		return XST_FAILURE;
@@ -143,7 +133,7 @@ void axisDmaCtrl_printParams(struct axisDmaCtrl_params *in)
 
 void axisDmaCtrl_disable(XScuGic * intcInstancePtr)
 {
-	axisDmaCtrl_disableIntrSystem(intcInstancePtr, TX_INTR_ID, RX_INTR_ID);
+	axisDmaCtrl_disableIntrSystem(intcInstancePtr, params.axisDma_txIrqId, params.axisDma_rxIrqId);
 	_tx_cb = NULL;
 	_rx_cb = NULL;
 	axisDmaCtrl_emptyParamsStruct(&params);
@@ -277,6 +267,9 @@ static struct axisDmaCtrl_params axisDmaCtrl_copyParamsStruct(struct axisDmaCtrl
 	tmp.coalesce_count = in->coalesce_count;
 	tmp.axisDma_txIrqPriority = in->axisDma_txIrqPriority;
 	tmp.axisDma_rxIrqPriority = in->axisDma_rxIrqPriority;
+	tmp.axisDma_rxIrqId = in->axisDma_rxIrqId;
+	tmp.axisDma_txIrqId = in->axisDma_txIrqId;
+	tmp.axisDma_dmaDevId = in->axisDma_dmaDevId;
 	return tmp;
 }
 
@@ -404,6 +397,7 @@ static void axisDmaCtrl_txIntrHandler(void *callback)
  		 */
 		XAxiDma_Reset(&axiDma);
 
+		/** @todo raise an error flag */
 		timeOut = RESET_TIMEOUT_COUNTER;
 		while (timeOut) {
 			if (XAxiDma_ResetIsDone(&axiDma)) {
@@ -627,7 +621,7 @@ static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr,
   	 * Initialize the interrupt controller driver so that it is ready to
   	 * use.
   	 */
-	intcConfig = XScuGic_LookupConfig(XScuGic_DEVICE_ID);
+	intcConfig = XScuGic_LookupConfig(params.axisDma_XscuGic_DevId);
 	if (NULL == intcConfig) {
 		return XST_FAILURE;
 	}
@@ -667,7 +661,7 @@ static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr,
 	/* Enable interrupts from the hardware */
 	Xil_ExceptionInit();
 	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT,
-			(Xil_ExceptionHandler)XScuGic_HANDLER,
+			(Xil_ExceptionHandler)XScuGic_InterruptHandler,
 			(void *)intcInstancePtr);
 
 	Xil_ExceptionEnable();

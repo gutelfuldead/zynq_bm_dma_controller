@@ -1,4 +1,5 @@
 /**
+ * @brief  
  * @author Jason Gutel (github.com/gutelfuldead)
  */
 
@@ -11,6 +12,12 @@
 #define MEM_REGION_BUF_SIZE     (0x0001FFF)
 #define BUFFER_SIZE             1102
 #define MAX_PKT_SIZE            BUFFER_SIZE
+
+#define XScuGic_HANDLER	   XScuGic_InterruptHandler
+#define DMA_DEV_ID	   XPAR_AXIDMA_0_DEVICE_ID
+#define XScuGic_DEVICE_ID  XPAR_SCUGIC_SINGLE_DEVICE_ID
+#define RX_INTR_ID	   XPAR_FABRIC_AXIDMA_0_S2MM_INTROUT_VEC_ID
+#define TX_INTR_ID	   XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_VEC_ID
 
 static int tx_count;
 static int rx_count;
@@ -40,6 +47,11 @@ int axis_dma_controller_sample_exec(int numTestPkts)
 	params.coalesce_count   = 1;
 	params.axisDma_txIrqPriority = 0xA0;
 	params.axisDma_rxIrqPriority = 0xA0;
+	params.axisDma_txIrqId = TX_INTR_ID;
+	params.axisDma_rxIrqId = RX_INTR_ID;
+	params.axisDma_dmaDevId = DMA_DEV_ID;
+	params.axisDma_XscuGic_DevId = XScuGic_HANDLER;
+	
 
 	axisDmaCtrl_printParams(&params);
 

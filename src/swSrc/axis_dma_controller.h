@@ -45,6 +45,10 @@ struct axisDmaCtrl_params{
 	uint8_t coalesce_count;	 /**< number of bds that must be ready for an irq to fire */
 	uint8_t axisDma_txIrqPriority; /**< priority level for the tx dma irq */
 	uint8_t axisDma_rxIrqPriority; /**< priority level for the rx dma irq */
+	uint8_t axisDma_txIrqId; /**< Interrupt ID for the tx dma from xparameters */
+	uint8_t axisDma_rxIrqId; /**< Interrupt ID for the rx dma from xparameters */
+	uint8_t axisDma_dmaDevId; /**< ID for the dma Device from xparameters */
+	uint8_t axisDma_XscuGic_DevId; /**< ID for the XscuGic from xparameters */
 };
 
 /**
