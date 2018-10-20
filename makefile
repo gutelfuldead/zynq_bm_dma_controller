@@ -20,7 +20,7 @@ VIVADO_REQI_VERSION      = 2017.4
 VIVADO_REQI_VERSION_STR  = v2017.4
 VIVADO_HOST_VERSION_STR  = $(shell vivado -version | awk '{print $$2}' | head -n 1)
 VIVADO_DEF_BASE_PATH     = /opt/Xilinx/Vivado/$(VIVADO_REQI_VERSION)
-VIVADO_BASE_PATH        ?= $(VIVADO_DEF_BASE_PATH)
+VIVADO_BASE_PATH         ?= $(VIVADO_DEF_BASE_PATH)
 VIVADO_CABLE_DRIVER_PATH = $(VIVADO_BASE_PATH)/data/xicom/cable_drivers/lin64/install_script/install_drivers
 BITSTREAM_TCL            = $(TCL_PATH)/build_bitstream.tcl
 
@@ -36,17 +36,6 @@ checkVivadoPath:
 ifeq ($(wildcard $(VIVADO_BASE_PATH)/bin/vivado),)
 	@echo -e "Vivado binary not found in $(VIVADO_BASE_PATH); check path..."
 	exit 1;
-endif
-
-initEnv: checkVivadoPath 
-ifeq ($(wildcard $(VIVADO_BOARD_PATH)),)
-	@echo -e "\tSourcing Vivado Xilinx Environment..."
-	- $(shell cd $(VIVADO_BASE_PATH) && sudo ./settings64.sh && cd $(PTOP))
-	@echo -e "\tRunning script to install Digilent Cable Drivers..."
-	- $(shell cd $(VIVADO_CABLE_DRIVER_PATH) && sudo ./install_drivers && cd $(PTOP))
-	@echo -e "\nError is normal; restart machine"
-else
-	@echo -e "Machine already initialized..."
 endif
 
 checkValidProjName:
@@ -86,8 +75,6 @@ $(CLEAN_BDS):
 
 help:
 	@echo -e "\tRequires Vivado $(VIVADO_REQI_VERSION_STR)\n"
-	@echo -e "make initEnv VIVADO_BASE_PATH=/my/path/to/Xilinx/Vivado/$(VIVADO_REQI_VERSION)"
-	@echo -e "\tInitialize machine's Vivado Environment (requires sudo)\n"
 	@echo -e "make build TARGET=projName"
 	@echo -e "\tBuilds vivado project, valid targets : $(VALID_TARGETS)\n"
 	@echo -e "make clean-all"
