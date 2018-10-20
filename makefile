@@ -86,7 +86,6 @@ $(CLEAN_BDS):
 	rm -rf ./src/bds/$@/*.xdc
 
 help:
-	@echo -e "Makefile to generate SMI CSP Reference Designs"
 	@echo -e "\tRequires Vivado $(VIVADO_REQI_VERSION_STR)\n"
 	@echo -e "make initEnv VIVADO_BASE_PATH=/my/path/to/Xilinx/Vivado/$(VIVADO_REQI_VERSION)"
 	@echo -e "\tInitialize machine's Vivado Environment (requires sudo)\n"
