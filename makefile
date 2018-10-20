@@ -2,16 +2,17 @@ PTOP                     = $(shell pwd)
 VALID_TARGETS            = zedboard \
                            zybo 
 CLEAN_TARGETS            = $(VALID_TARGETS) \
-							.Xil \
-							*.layout \
-							*.debug \
-							*.mif \
-							*.btree \
-							*.log \
-							*.jou \
-							*.zip \
-							*.str \
-							*.txt
+				.Xil \
+				Packages
+				*.layout \
+				*.debug \
+				*.mif \
+				*.btree \
+				*.log \
+				*.jou \
+				*.zip \
+				*.str \
+				*.txt
 CLEAN_BDS                = $(VALID_TARGETS)
 TCL_PATH                 = $(PTOP)/src/tcl
 OUTPUT_PATH              = $(PTOP)/src/outputFiles
