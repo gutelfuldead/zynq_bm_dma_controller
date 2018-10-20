@@ -76,31 +76,36 @@ int axisDmaCtrl_init(struct axisDmaCtrl_params *paramsIn,
 	XAxiDma_Config *config;
 
 	rc = axisDmaCtrl_register_tx_cb(txCb);
-	if(rc == XST_FAILURE)
+	if(rc == XST_FAILURE){
+		ERROR_PRINT("axisDmaCtrl_register_tx_cb failed!\r\n");
 		return rc;
+	}
 
 	axisDmaCtrl_register_rx_cb(rxCb);
-	if(rc == XST_FAILURE)
+	if(rc == XST_FAILURE){
+		ERROR_PRINT("axisDmaCtrl_register_rx_cb failed!\r\n");
 		return rc;
+	}
 
 	params = copy_axisDmaCtrl_params_struct(paramsIn);
 
-	rc = mark_mem_noncache(&params);
-	if (!rc) {
+	rc = mark_mem_noncache(paramsIn);
+	if (rc) {
+		ERROR_PRINT("mark_mem_noncache failed!\r\n");
 		return XST_FAILURE;
 	}
 
-	rc = XAxiDma_LookupConfig(DMA_DEV_ID);
-	if (!rc) {
-		ERROR_PRINT("No config found for %d\r\n", DMA_DEV_ID);
+	config = XAxiDma_LookupConfig(DMA_DEV_ID);
+	rc = XAxiDma_CfgInitialize(&AxiDma, config);
+	if(rc){
+		ERROR_PRINT("XAxiDma_CfgInitialize failed!\r\n");
 		return XST_FAILURE;
 	}
 
-	/* Initialize DMA engine */
-	XAxiDma_CfgInitialize(&AxiDma, config);
+
 
 	if(!XAxiDma_HasSg(&AxiDma)) {
-		ERROR_PRINT("Device configured as Simple mode -- not scatter gather\r\n");
+		ERROR_PRINT("DMA NOT in SG Mode...\r\n");
 		return XST_FAILURE;
 	}
 
@@ -125,6 +130,20 @@ int axisDmaCtrl_init(struct axisDmaCtrl_params *paramsIn,
 	}
 
 	return XST_SUCCESS;
+}
+
+void axisDmaCtrl_printParams(struct axisDmaCtrl_params *in)
+{
+	printf("rx_bd_space_base 0x%x\r\n",(unsigned int)in->rx_bd_space_base);
+	printf("rx_bd_space_high 0x%x\r\n",(unsigned int)in->rx_bd_space_high);
+	printf("tx_bd_space_base 0x%x\r\n",(unsigned int)in->tx_bd_space_base);
+	printf("tx_bd_space_high 0x%x\r\n",(unsigned int)in->tx_bd_space_high);
+	printf("tx_buffer_base   0x%x\r\n",(unsigned int)in->tx_buffer_base);
+	printf("tx_buffer_high   0x%x\r\n",(unsigned int)in->tx_buffer_high);
+	printf("rx_buffer_base   0x%x\r\n",(unsigned int)in->rx_buffer_base);
+	printf("rx_buffer_high   0x%x\r\n",(unsigned int)in->rx_buffer_high);
+	printf("bd_buf_size      0x%x\r\n",(unsigned int)in->bd_buf_size);
+	printf("coalesce_count   %u\r\n",in->coalesce_count);
 }
 
 int axisDmaCtrl_disable(XScuGic * IntcInstancePtr)
@@ -223,25 +242,27 @@ int axisDmaCtrl_sendPackets(uint8_t * packetBuf, size_t packetSize)
 
 static int mark_mem_noncache(struct axisDmaCtrl_params *mem)
 {
-	int i = 0;
-	if(mem->rx_bd_space_base == NULL
-		|| mem->rx_bd_space_high == NULL
-		|| mem->tx_bd_space_base == NULL
-		|| mem->tx_bd_space_high == NULL
-		|| mem->tx_buffer_base == NULL
-		|| mem->tx_buffer_high == NULL
-		|| mem->rx_buffer_base == NULL
-		|| mem->rx_buffer_high == NULL
-		|| mem->bd_buf_size == NULL
-		|| mem->coalesce_count == 0)
+	size_t i = 0;
+	int invalid_struct = 0;
+	invalid_struct |= mem->rx_bd_space_base    == 0
+		       || mem->rx_bd_space_high    == 0
+		       || mem->tx_bd_space_base    == 0
+		       || mem->tx_bd_space_high    == 0
+		       || mem->tx_buffer_base      == 0
+		       || mem->tx_buffer_high      == 0
+		       || mem->rx_buffer_base      == 0
+		       || mem->rx_buffer_high      == 0
+		       || mem->bd_buf_size         == 0
+		       || (int)mem->coalesce_count == 0;
+	if(invalid_struct)
 		return XST_FAILURE;
-	for(i = mem->tx_bd_space_base; i < mem->tx_bd_space_high; i += ONE_MB)
+	for(i = mem->rx_bd_space_base; i <= mem->rx_bd_space_high; i += ONE_MB)
 		Xil_SetTlbAttributes(i, NORM_NONCACHE);
-	for(i = mem->rx_bd_space_base; i < mem->rx_bd_space_high; i += ONE_MB)
+	for(i = mem->tx_bd_space_base; i <= mem->tx_bd_space_high; i += ONE_MB)
 		Xil_SetTlbAttributes(i, NORM_NONCACHE);
-	for(i = mem->tx_buffer_base; i < mem->tx_buffer_high; i += ONE_MB)
+	for(i = mem->tx_buffer_base; i <= mem->tx_buffer_high; i += ONE_MB)
 		Xil_SetTlbAttributes(i, NORM_NONCACHE);
-	for(i = mem->rx_buffer_base; i < mem->rx_buffer_high; i += ONE_MB)
+	for(i = mem->rx_buffer_base; i <= mem->rx_buffer_high; i += ONE_MB)
 		Xil_SetTlbAttributes(i, NORM_NONCACHE);
 	return XST_SUCCESS;
 }
@@ -264,14 +285,14 @@ static struct axisDmaCtrl_params copy_axisDmaCtrl_params_struct(struct axisDmaCt
 
 static void empty_memspace(struct axisDmaCtrl_params * in)
 {
-	in->rx_bd_space_base = NULL;
-	in->rx_bd_space_high = NULL;
-	in->tx_bd_space_base = NULL;
-	in->tx_bd_space_high = NULL;
-	in->tx_buffer_base   = NULL;
-	in->tx_buffer_high   = NULL;
-	in->rx_buffer_base   = NULL;
-	in->rx_buffer_high   = NULL;
+	in->rx_bd_space_base = 0;
+	in->rx_bd_space_high = 0;
+	in->tx_bd_space_base = 0;
+	in->tx_bd_space_high = 0;
+	in->tx_buffer_base   = 0;
+	in->tx_buffer_high   = 0;
+	in->rx_buffer_base   = 0;
+	in->rx_buffer_high   = 0;
 	in->bd_buf_size      = 0;	
 	in->coalesce_count   = 1;	
 }
@@ -330,7 +351,7 @@ static void tx_irq_bd_handler(XAxiDma_BdRing * TxRingPtr)
 	/* Free all processed BDs for future transmission */
 	rc = XAxiDma_BdRingFree(TxRingPtr, BdCount, BdPtr);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("\r\n");
+		ERROR_PRINT("XAxiDma_BdRingFree\r\n");
 	}
 
 	_tx_cb();
@@ -452,8 +473,8 @@ static void rx_irq_bd_handler(XAxiDma_BdRing * RxRingPtr)
 		/* get memory offset of current bd */
 		uint32_t addr   = XAxiDma_BdGetBufAddr(BdCurPtr);
 		uint32_t pktLen = XAxiDma_BdGetActualLength(BdCurPtr,params.bd_buf_size);
-//		printf("-- %s: (BdCount %d) rx packet %04d @ 0x%x len %lu\r\n",__func__,BdCount,RxDone,(unsigned int)addr,pktLen);
 		// XAxiDma_DumpBd(BdCurPtr);
+		// printf("-- %s: (BdCount %d) rx packet %04d @ 0x%x len %lu\r\n",__func__,BdCount,RxDone,(unsigned int)addr,pktLen);
 
 		_rx_cb(addr, pktLen);
 
@@ -718,7 +739,7 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
 		ERROR_PRINT("Rx bd create failed with %d\r\n", rc);
 		return XST_FAILURE;
 	}
-	printf("%d rx bds created\r\n",BdCount);
+	DEBUG_PRINT("%d rx bds created\r\n",BdCount);
 
 	/*
   	 * Setup a BD template for the Rx channel. Then copy it to every RX BD.

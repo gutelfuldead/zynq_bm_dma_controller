@@ -31,5 +31,6 @@ int axisDmaCtrl_init(struct axisDmaCtrl_params *params,
 	tx_cb_t txCb);
 int axisDmaCtrl_disable(XScuGic * IntcInstancePtr);
 int axisDmaCtrl_sendPackets(uint8_t * packetBuf, size_t packetSize);
+void axisDmaCtrl_printParams(struct axisDmaCtrl_params *in);
 
 #endif // AXIS_DMA_CONTROLLER_H
