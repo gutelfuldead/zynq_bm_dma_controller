@@ -289,19 +289,6 @@ static void axisDmaCtrl_emptyParamsStruct(struct axisDmaCtrl_params * in)
 	in->axisDma_txIrqPriority = 0xff;
 }
 
-/*****************************************************************************/
-/*
- * *
- * * This is the DMA TX callback function to be called by TX interrupt handler.
- * * This function handles BDs finished by hardware.
- * *
- * * @param	txRingPtr is a pointer to TX channel of the DMA engine.
- * *
- * * @return	None.
- * *
- * * @note		None.
- * *
- * ******************************************************************************/
 static void axisDmaCtrl_txIrqBdHandler(XAxiDma_BdRing * txRingPtr)
 {
 	int bdCount;
@@ -349,22 +336,6 @@ static void axisDmaCtrl_txIrqBdHandler(XAxiDma_BdRing * txRingPtr)
 	_tx_cb();
 }
 
-/*****************************************************************************/
-/*
- * *
- * * This is the DMA TX Interrupt handler function.
- * *
- * * It gets the interrupt status from the hardware, acknowledges it, and if any
- * * error happens, it resets the hardware. Otherwise, if a completion interrupt
- * * presents, then it calls the callback function.
- * *
- * * @param	callback is a pointer to TX channel of the DMA engine.
- * *
- * * @return	None.
- * *
- * * @note		None.
- * *
- * ******************************************************************************/
 static void axisDmaCtrl_txIntrHandler(void *callback)
 {
 	XAxiDma_BdRing *txRingPtr = (XAxiDma_BdRing *) callback;
@@ -417,20 +388,6 @@ static void axisDmaCtrl_txIntrHandler(void *callback)
 	}
 }
 
-/*****************************************************************************/
-/*
- * *
- * * This is the DMA RX callback function called by the RX interrupt handler.
- * * This function handles finished BDs by hardware, attaches new buffers to those
- * * BDs, and give them back to hardware to receive more incoming packets
- * *
- * * @param	rxRingPtr is a pointer to RX channel of the DMA engine.
- * *
- * * @return	None.
- * *
- * * @note		None.
- * *
- * ******************************************************************************/
 static void axisDmaCtrl_rxIrqBdHandler(XAxiDma_BdRing * rxRingPtr)
 {
 	int bdCount;
@@ -497,22 +454,6 @@ static void axisDmaCtrl_rxIrqBdHandler(XAxiDma_BdRing * rxRingPtr)
 	}
 }
 
-/*****************************************************************************/
-/*
- * *
- * * This is the DMA RX interrupt handler function
- * *
- * * It gets the interrupt status from the hardware, acknowledges it, and if any
- * * error happens, it resets the hardware. Otherwise, if a completion interrupt
- * * presents, then it calls the callback function.
- * *
- * * @param	callback is a pointer to RX channel of the DMA engine.
- * *
- * * @return	None.
- * *
- * * @note		None.
- * *
- * ******************************************************************************/
 static void axisDmaCtrl_rxIntrHandler(void *callback)
 {
 	XAxiDma_BdRing *rxRingPtr = (XAxiDma_BdRing *) callback;
@@ -568,25 +509,6 @@ static void axisDmaCtrl_rxIntrHandler(void *callback)
 		axisDmaCtrl_rxIrqBdHandler(rxRingPtr);
 	}
 }
-
-/*****************************************************************************/
-/*
- * *
- * * This function setups the interrupt system so interrupts can occur for the
- * * DMA, it assumes XScuGic component exists in the hardware system.
- * *
- * * @param	intcInstancePtr is a pointer to the instance of the XScuGic.
- * * @param	axiDmaPtr is a pointer to the instance of the DMA engine
- * * @param	txIntrId is the TX channel Interrupt ID.
- * * @param	rxIntrId is the RX channel Interrupt ID.
- * *
- * * @return
- * *		- XST_SUCCESS if successful,
- * *		- XST_FAILURE.if not succesful
- * *
- * * @note		None.
- * *
- * ******************************************************************************/
 
 static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr,
 			   XAxiDma * axiDmaPtr, u16 txIntrId, u16 rxIntrId)
@@ -650,20 +572,6 @@ static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr,
 	return XST_SUCCESS;
 }
 
-/*****************************************************************************/
-/**
- * *
- * * This function disables the interrupts for DMA engine.
- * *
- * * @param	intcInstancePtr is the pointer to the XScuGic component instance
- * * @param	txIntrId is interrupt ID associated w/ DMA TX channel
- * * @param	rxIntrId is interrupt ID associated w/ DMA RX channel
- * *
- * * @return	None.
- * *
- * * @note		None.
- * *
- * ******************************************************************************/
 static void axisDmaCtrl_disableIntrSystem(XScuGic * intcInstancePtr,
 					u16 txIntrId, u16 rxIntrId)
 {
@@ -671,20 +579,6 @@ static void axisDmaCtrl_disableIntrSystem(XScuGic * intcInstancePtr,
 	XScuGic_Disconnect(intcInstancePtr, rxIntrId);
 }
 
-/*****************************************************************************/
-/*
- * *
- * * This function sets up RX channel of the DMA engine to be ready for packet
- * * reception
- * *
- * * @param	axiDmaInstPtr is the pointer to the instance of the DMA engine.
- * *
- * * @return	- XST_SUCCESS if the setup is successful.
- * *		- XST_FAILURE if fails.
- * *
- * * @note		None.
- * *
- * ******************************************************************************/
 static int axisDmaCtrl_rxSetup(XAxiDma * axiDmaInstPtr)
 {
 	XAxiDma_BdRing *rxRingPtr;
@@ -804,20 +698,6 @@ static int axisDmaCtrl_rxSetup(XAxiDma * axiDmaInstPtr)
 	return XST_SUCCESS;
 }
 
-/*****************************************************************************/
-/*
- * *
- * * This function sets up the TX channel of a DMA engine to be ready for packet
- * * transmission.
- * *
- * * @param	axiDmaInstPtr is the pointer to the instance of the DMA engine.
- * *
- * * @return	- XST_SUCCESS if the setup is successful.
- * *		- XST_FAILURE otherwise.
- * *
- * * @note		None.
- * *
- * ******************************************************************************/
 static int axisDmaCtrl_txSetup(XAxiDma * axiDmaInstPtr)
 {
 	XAxiDma_BdRing *txRingPtr = XAxiDma_GetTxRing(axiDmaInstPtr);
