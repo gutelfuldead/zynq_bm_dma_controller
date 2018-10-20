@@ -467,27 +467,8 @@ static void axisDmaCtrl_rxIrqBdHandler(XAxiDma_BdRing * rxRingPtr)
 		uint32_t addr   = XAxiDma_BdGetBufAddr(bdCurPtr);
 		uint32_t pktLen = XAxiDma_BdGetActualLength(bdCurPtr,params.bd_buf_size);
 		// XAxiDma_DumpBd(bdCurPtr);
-		// printf("-- %s: (bdCount %d) rx packet %04d @ 0x%x len %lu\r\n",__func__,bdCount,RxDone,(unsigned int)addr,pktLen);
 
 		_rx_cb(addr, pktLen);
-
-		#if 0
-		/* check data */
-		uint8_t *rxPacket = (u8 *)addr;
-		int j = 0;
-		for(j = 0; j < params.bd_buf_size; j++){
-			if(*(rxPacket+j) != txPkt[j]){
-				AXISDMA_ERROR_PRINT("[%04d]: tx %03d, rx %03d @ 0x%x; RxDone=%04d\r\n",j,txPkt[j],*(rxPacket+j),(rxPacket+j),RxDone);
-				// XAxiDma_BdRingDumpRegs(rxRingPtr);
-				XAxiDma_DumpBd(bdCurPtr);
-				break;
-			}
-		}
-
-
-		/* clear bds memory area to verify this isn't all an illusion... */
-		memset((void *)addr, 0, params.bd_buf_size);
-		#endif
 		
 		/* Find the next processed BD */
 		if(i != bdCount-1)
