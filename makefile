@@ -14,7 +14,6 @@ CLEAN_TARGETS            = $(VALID_TARGETS) \
 							*.txt
 CLEAN_BDS                = $(VALID_TARGETS)
 TCL_PATH                 = $(PTOP)/src/tcl
-CSP_BOARD_PATH           = $(PTOP)/src/cspBoardFiles
 OUTPUT_PATH              = $(PTOP)/src/outputFiles
 VIVADO_CMD               = vivado -mode batch -source
 VIVADO_REQI_VERSION      = 2017.4
