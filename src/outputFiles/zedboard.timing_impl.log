@@ -1,0 +1,322 @@
+Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
+-----------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2018.2 (lin64) Build 2258646 Thu Jun 14 20:02:38 MDT 2018
+| Date         : Fri Oct 19 17:33:52 2018
+| Host         : afx-Latitude-E6430s running 64-bit Ubuntu 16.04.5 LTS
+| Command      : report_timing_summary -file /home_extended/gits/zedboard_dma/src/outputFiles/zedboard.timing_impl.log
+| Design       : zedboard_wrapper
+| Device       : 7z020-clg484
+| Speed File   : -1  PRODUCTION 1.11 2014-09-11
+-----------------------------------------------------------------------------------------------------------------------
+
+Timing Summary Report
+
+------------------------------------------------------------------------------------------------
+| Timer Settings
+| --------------
+------------------------------------------------------------------------------------------------
+
+  Enable Multi Corner Analysis               :  Yes
+  Enable Pessimism Removal                   :  Yes
+  Pessimism Removal Resolution               :  Nearest Common Node
+  Enable Input Delay Default Clock           :  No
+  Enable Preset / Clear Arcs                 :  No
+  Disable Flight Delays                      :  No
+  Ignore I/O Paths                           :  No
+  Timing Early Launch at Borrowing Latches   :  false
+
+  Corner  Analyze    Analyze    
+  Name    Max Paths  Min Paths  
+  ------  ---------  ---------  
+  Slow    Yes        Yes        
+  Fast    Yes        Yes        
+
+
+
+check_timing report
+
+Table of Contents
+-----------------
+1. checking no_clock
+2. checking constant_clock
+3. checking pulse_width_clock
+4. checking unconstrained_internal_endpoints
+5. checking no_input_delay
+6. checking no_output_delay
+7. checking multiple_clock
+8. checking generated_clocks
+9. checking loops
+10. checking partial_input_delay
+11. checking partial_output_delay
+12. checking latch_loops
+
+1. checking no_clock
+--------------------
+ There are 0 register/latch pins with no clock.
+
+
+2. checking constant_clock
+--------------------------
+ There are 0 register/latch pins with constant_clock.
+
+
+3. checking pulse_width_clock
+-----------------------------
+ There are 0 register/latch pins which need pulse_width check
+
+
+4. checking unconstrained_internal_endpoints
+--------------------------------------------
+ There are 0 pins that are not constrained for maximum delay.
+
+ There are 0 pins that are not constrained for maximum delay due to constant clock.
+
+
+5. checking no_input_delay
+--------------------------
+ There are 0 input ports with no input delay specified.
+
+ There are 0 input ports with no input delay but user has a false path constraint.
+
+
+6. checking no_output_delay
+---------------------------
+ There are 0 ports with no output delay specified.
+
+ There are 0 ports with no output delay but user has a false path constraint
+
+ There are 0 ports with no output delay but with a timing clock defined on it or propagating through it
+
+
+7. checking multiple_clock
+--------------------------
+ There are 0 register/latch pins with multiple clocks.
+
+
+8. checking generated_clocks
+----------------------------
+ There are 0 generated clocks that are not connected to a clock source.
+
+
+9. checking loops
+-----------------
+ There are 0 combinational loops in the design.
+
+
+10. checking partial_input_delay
+--------------------------------
+ There are 0 input ports with partial input delay specified.
+
+
+11. checking partial_output_delay
+---------------------------------
+ There are 0 ports with partial output delay specified.
+
+
+12. checking latch_loops
+------------------------
+ There are 0 combinational latch loops in the design through latch input
+
+
+
+------------------------------------------------------------------------------------------------
+| Design Timing Summary
+| ---------------------
+------------------------------------------------------------------------------------------------
+
+    WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+    -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+      2.433        0.000                      0                28517        0.021        0.000                      0                28517        3.750        0.000                       0                  9689  
+
+
+All user specified timing constraints are met.
+
+
+------------------------------------------------------------------------------------------------
+| Clock Summary
+| -------------
+------------------------------------------------------------------------------------------------
+
+Clock       Waveform(ns)       Period(ns)      Frequency(MHz)
+-----       ------------       ----------      --------------
+clk_fpga_0  {0.000 5.000}      10.000          100.000         
+
+
+------------------------------------------------------------------------------------------------
+| Intra Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+Clock             WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+-----             -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+clk_fpga_0          2.433        0.000                      0                28517        0.021        0.000                      0                28517        3.750        0.000                       0                  9689  
+
+
+------------------------------------------------------------------------------------------------
+| Inter Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------    --------          -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+
+
+------------------------------------------------------------------------------------------------
+| Other Path Groups Table
+| -----------------------
+------------------------------------------------------------------------------------------------
+
+Path Group    From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------    ----------    --------          -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+
+
+------------------------------------------------------------------------------------------------
+| Timing Details
+| --------------
+------------------------------------------------------------------------------------------------
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  clk_fpga_0
+  To Clock:  clk_fpga_0
+
+Setup :            0  Failing Endpoints,  Worst Slack        2.433ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.021ns,  Total Violation        0.000ns
+PW    :            0  Failing Endpoints,  Worst Slack        3.750ns,  Total Violation        0.000ns
+---------------------------------------------------------------------------------------------------
+
+
+Max Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             2.433ns  (required time - arrival time)
+  Source:                 zedboardVanilla_i/axi_smc/inst/s02_entry_pipeline/s02_mmu/inst/gen_endpoint.w_state_reg[1]/C
+                            (rising edge-triggered cell FDRE clocked by clk_fpga_0  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/gen_wr.full_r_reg_inv/D
+                            (rising edge-triggered cell FDRE clocked by clk_fpga_0  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             clk_fpga_0
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (clk_fpga_0 rise@10.000ns - clk_fpga_0 rise@0.000ns)
+  Data Path Delay:        6.883ns  (logic 1.853ns (26.921%)  route 5.030ns (73.079%))
+  Logic Levels:           6  (LUT2=3 LUT5=2 LUT6=1)
+  Clock Path Skew:        -0.220ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    2.655ns = ( 12.655 - 10.000 ) 
+    Source Clock Delay      (SCD):    3.004ns
+    Clock Pessimism Removal (CPR):    0.129ns
+  Clock Uncertainty:      0.154ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.300ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock clk_fpga_0 rise edge)
+                                                      0.000     0.000 r  
+    PS7_X0Y0             PS7                          0.000     0.000 r  zedboardVanilla_i/processing_system7_0/inst/PS7_i/FCLKCLK[0]
+                         net (fo=1, routed)           1.193     1.193    zedboardVanilla_i/processing_system7_0/inst/FCLK_CLK_unbuffered[0]
+    BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.101     1.294 r  zedboardVanilla_i/processing_system7_0/inst/buffer_fclk_clk_0.FCLK_CLK_0_BUFG/O
+                         net (fo=9690, routed)        1.710     3.004    zedboardVanilla_i/axi_smc/inst/s02_entry_pipeline/s02_mmu/inst/aclk
+    SLICE_X59Y60         FDRE                                         r  zedboardVanilla_i/axi_smc/inst/s02_entry_pipeline/s02_mmu/inst/gen_endpoint.w_state_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X59Y60         FDRE (Prop_fdre_C_Q)         0.456     3.460 f  zedboardVanilla_i/axi_smc/inst/s02_entry_pipeline/s02_mmu/inst/gen_endpoint.w_state_reg[1]/Q
+                         net (fo=21, routed)          1.025     4.485    zedboardVanilla_i/axi_smc/inst/s02_entry_pipeline/s02_mmu/inst/aw_reg_stall/gen_endpoint.w_state[1]
+    SLICE_X57Y58         LUT2 (Prop_lut2_I0_O)        0.152     4.637 r  zedboardVanilla_i/axi_smc/inst/s02_entry_pipeline/s02_mmu/inst/aw_reg_stall/m_axi_awvalid_INST_0/O
+                         net (fo=4, routed)           0.828     5.465    zedboardVanilla_i/axi_smc/inst/s02_entry_pipeline/s02_si_converter/inst/splitter_inst/gen_no_wsplitter.gen_endpoint_woffset.gen_wbypass_offset_fifo.wbypass_offset_fifo/s_axi_awvalid
+    SLICE_X52Y56         LUT2 (Prop_lut2_I1_O)        0.319     5.784 r  zedboardVanilla_i/axi_smc/inst/s02_entry_pipeline/s02_si_converter/inst/splitter_inst/gen_no_wsplitter.gen_endpoint_woffset.gen_wbypass_offset_fifo.wbypass_offset_fifo/m_axi_awvalid_INST_0/O
+                         net (fo=1, routed)           0.437     6.222    zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_si_handler/inst_arb_stall_late/s_sc_send[0]
+    SLICE_X51Y56         LUT2 (Prop_lut2_I0_O)        0.332     6.554 r  zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_si_handler/inst_arb_stall_late/count_r[5]_i_3/O
+                         net (fo=45, routed)          0.919     7.472    zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/gen_wr.inst_wr_addra_p1/p_0_in3_in
+    SLICE_X44Y59         LUT5 (Prop_lut5_I3_O)        0.118     7.590 f  zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/gen_wr.inst_wr_addra_p1/gen_rd.fifo_empty_r_i_6__0/O
+                         net (fo=1, routed)           0.813     8.403    zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/gen_wr.inst_wr_addra_p1/gen_rd.fifo_empty_r_i_6__0_n_0
+    SLICE_X45Y59         LUT6 (Prop_lut6_I0_O)        0.326     8.729 f  zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/gen_wr.inst_wr_addra_p1/gen_rd.fifo_empty_r_i_3__0/O
+                         net (fo=2, routed)           0.433     9.162    zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/gen_wr.inst_wr_addra_p1/gen_rd.fifo_empty_r_i_3__0_n_0
+    SLICE_X45Y59         LUT5 (Prop_lut5_I2_O)        0.150     9.312 r  zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/gen_wr.inst_wr_addra_p1/gen_wr.full_r_inv_i_1__0/O
+                         net (fo=1, routed)           0.575     9.887    zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/gen_wr.inst_wr_addra_p1_n_1
+    SLICE_X45Y60         FDRE                                         r  zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/gen_wr.full_r_reg_inv/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock clk_fpga_0 rise edge)
+                                                     10.000    10.000 r  
+    PS7_X0Y0             PS7                          0.000    10.000 r  zedboardVanilla_i/processing_system7_0/inst/PS7_i/FCLKCLK[0]
+                         net (fo=1, routed)           1.088    11.088    zedboardVanilla_i/processing_system7_0/inst/FCLK_CLK_unbuffered[0]
+    BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.091    11.179 r  zedboardVanilla_i/processing_system7_0/inst/buffer_fclk_clk_0.FCLK_CLK_0_BUFG/O
+                         net (fo=9690, routed)        1.476    12.655    zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/s_sc_aclk
+    SLICE_X45Y60         FDRE                                         r  zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/gen_wr.full_r_reg_inv/C
+                         clock pessimism              0.129    12.784    
+                         clock uncertainty           -0.154    12.630    
+    SLICE_X45Y60         FDRE (Setup_fdre_C_D)       -0.310    12.320    zedboardVanilla_i/axi_smc/inst/s02_nodes/s02_aw_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/gen_wr.full_r_reg_inv
+  -------------------------------------------------------------------
+                         required time                         12.320    
+                         arrival time                          -9.887    
+  -------------------------------------------------------------------
+                         slack                                  2.433    
+
+
+
+
+
+Min Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             0.021ns  (arrival time - required time)
+  Source:                 zedboardVanilla_i/axi_dma_0/U0/I_PRMRY_DATAMOVER/GEN_MM2S_FULL.I_MM2S_FULL_WRAPPER/I_ADDR_CNTL/sig_next_addr_reg_reg[28]/C
+                            (rising edge-triggered cell FDRE clocked by clk_fpga_0  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            zedboardVanilla_i/axi_smc/inst/s01_entry_pipeline/s01_mmu/inst/ar_sreg/skid_buffer_reg[1089]/D
+                            (rising edge-triggered cell FDRE clocked by clk_fpga_0  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             clk_fpga_0
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (clk_fpga_0 rise@0.000ns - clk_fpga_0 rise@0.000ns)
+  Data Path Delay:        0.305ns  (logic 0.148ns (48.453%)  route 0.157ns (51.547%))
+  Logic Levels:           0  
+  Clock Path Skew:        0.266ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    1.193ns
+    Source Clock Delay      (SCD):    0.892ns
+    Clock Pessimism Removal (CPR):    0.035ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock clk_fpga_0 rise edge)
+                                                      0.000     0.000 r  
+    PS7_X0Y0             PS7                          0.000     0.000 r  zedboardVanilla_i/processing_system7_0/inst/PS7_i/FCLKCLK[0]
+                         net (fo=1, routed)           0.310     0.310    zedboardVanilla_i/processing_system7_0/inst/FCLK_CLK_unbuffered[0]
+    BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.026     0.336 r  zedboardVanilla_i/processing_system7_0/inst/buffer_fclk_clk_0.FCLK_CLK_0_BUFG/O
+                         net (fo=9690, routed)        0.556     0.891    zedboardVanilla_i/axi_dma_0/U0/I_PRMRY_DATAMOVER/GEN_MM2S_FULL.I_MM2S_FULL_WRAPPER/I_ADDR_CNTL/m_axi_mm2s_aclk
+    SLICE_X50Y39         FDRE                                         r  zedboardVanilla_i/axi_dma_0/U0/I_PRMRY_DATAMOVER/GEN_MM2S_FULL.I_MM2S_FULL_WRAPPER/I_ADDR_CNTL/sig_next_addr_reg_reg[28]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X50Y39         FDRE (Prop_fdre_C_Q)         0.148     1.039 r  zedboardVanilla_i/axi_dma_0/U0/I_PRMRY_DATAMOVER/GEN_MM2S_FULL.I_MM2S_FULL_WRAPPER/I_ADDR_CNTL/sig_next_addr_reg_reg[28]/Q
+                         net (fo=2, routed)           0.157     1.197    zedboardVanilla_i/axi_smc/inst/s01_entry_pipeline/s01_mmu/inst/ar_sreg/D[30]
+    SLICE_X49Y38         FDRE                                         r  zedboardVanilla_i/axi_smc/inst/s01_entry_pipeline/s01_mmu/inst/ar_sreg/skid_buffer_reg[1089]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock clk_fpga_0 rise edge)
+                                                      0.000     0.000 r  
+    PS7_X0Y0             PS7                          0.000     0.000 r  zedboardVanilla_i/processing_system7_0/inst/PS7_i/FCLKCLK[0]
+                         net (fo=1, routed)           0.337     0.337    zedboardVanilla_i/processing_system7_0/inst/FCLK_CLK_unbuffered[0]
+    BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.029     0.366 r  zedboardVanilla_i/processing_system7_0/inst/buffer_fclk_clk_0.FCLK_CLK_0_BUFG/O
+                         net (fo=9690, routed)        0.827     1.193    zedboardVanilla_i/axi_smc/inst/s01_entry_pipeline/s01_mmu/inst/ar_sreg/aclk
+    SLICE_X49Y38         FDRE                                         r  zedboardVanilla_i/axi_smc/inst/s01_entry_pipeline/s01_mmu/inst/ar_sreg/skid_buffer_reg[1089]/C
+                         clock pessimism             -0.035     1.158    
+    SLICE_X49Y38         FDRE (Hold_fdre_C_D)         0.018     1.176    zedboardVanilla_i/axi_smc/inst/s01_entry_pipeline/s01_mmu/inst/ar_sreg/skid_buffer_reg[1089]
+  -------------------------------------------------------------------
+                         required time                         -1.176    
+                         arrival time                           1.197    
+  -------------------------------------------------------------------
+                         slack                                  0.021    
+
+
+
+
+
+Pulse Width Checks
+--------------------------------------------------------------------------------------
+Clock Name:         clk_fpga_0
+Waveform(ns):       { 0.000 5.000 }
+Period(ns):         10.000
+Sources:            { zedboardVanilla_i/processing_system7_0/inst/PS7_i/FCLKCLK[0] }
+
+Check Type        Corner  Lib Pin             Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location      Pin
+Min Period        n/a     RAMB18E1/CLKARDCLK  n/a            2.576         10.000      7.424      RAMB18_X3Y10  zedboardVanilla_i/axis_data_fifo_0/inst/gen_fifo_generator.fifo_generator_inst/inst_fifo_gen/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/inst_blk_mem_gen/gnbram.gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/prim_noinit.ram/DEVICE_7SERIES.NO_BMM_INFO.SDP.SIMPLE_PRIM18.ram/CLKARDCLK
+Low Pulse Width   Slow    RAMD32/CLK          n/a            1.250         5.000       3.750      SLICE_X38Y35  zedboardVanilla_i/axi_smc/inst/s01_nodes/s01_r_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/gen_mem_rep[0].inst_xpm_memory/xpm_memory_base_inst/gen_wr_a.gen_word_narrow.mem_reg_0_31_48_53/RAMB_D1/CLK
+High Pulse Width  Slow    RAMD32/CLK          n/a            1.250         5.000       3.750      SLICE_X20Y41  zedboardVanilla_i/axi_smc/inst/m00_nodes/m00_r_node/inst/inst_mi_handler/gen_normal_area.inst_fifo_node_payld/gen_xpm_memory_fifo.inst_fifo/gen_mem_rep[0].inst_xpm_memory/xpm_memory_base_inst/gen_wr_a.gen_word_narrow.mem_reg_0_31_66_71/RAMB_D1/CLK
+
+
+
