@@ -1,3 +1,7 @@
+/**
+ * @author Jason Gutel (github.com/gutelfuldead)
+ */
+
 #include "stdio.h"
 #include "stdlib.h"
 #include "axis_dma_controller.h"
@@ -34,6 +38,8 @@ int axis_dma_controller_sample_exec(int numTestPkts)
 	params.rx_buffer_high   = params.rx_buffer_base + MEM_REGION_BUF_SIZE;
 	params.bd_buf_size      = BUFFER_SIZE;
 	params.coalesce_count   = 1;
+	params.axisDma_txIrqPriority = 0xA0;
+	params.axisDma_rxIrqPriority = 0xA0;
 
 	axisDmaCtrl_printParams(&params);
 
@@ -88,6 +94,6 @@ static void rx_callback(uint32_t buf_addr, uint32_t buf_len)
 			break;
 		}
 	}
-	memset(buf_addr, 0, MAX_PKT_SIZE);
+	memset((void *)buf_addr, 0, MAX_PKT_SIZE);
 	rx_count++;
 }

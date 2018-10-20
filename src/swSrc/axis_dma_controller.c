@@ -1,12 +1,9 @@
 /**
-  * author jason gutel
-  */
-
-/** @todo
- * 1. Set up ring buffer to dump tx packets into
- * 2. Timer interrupt at provided rate
- * 3. In interrupt take element from RB and send over tx chain
- */ 
+ * @brief  Provides API for abstracting control for handling bare-metal
+ *         AXI-Stream DMA Engine configured in Scatter Gather (SG) Mode
+ *         with Dynamic ReAlignment Engine (DRE) enabled  
+ * @author Jason Gutel (github.com/gutelfuldead)
+ */
 
 #include "xparameters.h"
 #include "xil_exception.h"
@@ -26,41 +23,41 @@
 #define TX_INTR_ID	XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_VEC_ID
 
 /* THE MEMORY SECTION NEEDS TO BE MARKED NON-CACHEABLE BY THE TLB */
-#define ONE_MB              0x100000U
+#define ONE_MB 0x100000U
 
 /* Timeout loop counter for reset */
-#define RESET_TIMEOUT_COUNTER	10000
-
-
-/* The interrupt coalescing threshold and delay timer threshold
- * Valid range is 1 to 255
- */
-#define DELAY_TIMER_COUNT		100
+#define RESET_TIMEOUT_COUNTER 10000
+#define DELAY_TIMER_COUNT 100
 
 /**************************** Type Definitions *******************************/
 
 /***************** Macros (Inline Functions) Definitions *********************/
-#define ERROR_PRINT(fmt, args...) printf("ERROR: %s:%d(): " fmt, \
-    __func__,__LINE__, ##args)
+#ifdef AXISDMA_ENABLE_PRINTS
+	#define AXISDMA_ERROR_PRINT(fmt, args...) printf("ERROR: %s:%d(): " fmt, \
+    		__func__,__LINE__, ##args)
+	#define AXISDMA_DEBUG_PRINT(fmt, args...) printf("DEBUG: %s:%d(): " fmt, \
+	    __func__,__LINE__, ##args)
+#else
+	#define AXISDMA_ERROR_PRINT(fmt, args...)
+	#define AXISDMA_DEBUG_PRINT(fmt, args...) 
+#endif
 
-#define DEBUG_PRINT(fmt, args...) printf("DEBUG: %s:%d(): " fmt, \
-    __func__,__LINE__, ##args)
 
 /************************** Function Prototypes ******************************/
-static void TxIntrHandler(void *Callback);
-static void RxIntrHandler(void *Callback);
-static int SetupIntrSystem(XScuGic * IntcInstancePtr, XAxiDma * AxiDmaPtr, u16 TxIntrId, u16 RxIntrId);
-static void DisableIntrSystem(XScuGic * IntcInstancePtr, u16 TxIntrId, u16 RxIntrId);
-static int RxSetup(XAxiDma * AxiDmaInstPtr);
-static int TxSetup(XAxiDma * AxiDmaInstPtr);
-static void tx_irq_bd_handler(XAxiDma_BdRing * TxRingPtr);
-static void rx_irq_bd_handler(XAxiDma_BdRing * RxRingPtr);
-static int mark_mem_noncache(struct axisDmaCtrl_params *mem);
-static struct axisDmaCtrl_params copy_axisDmaCtrl_params_struct(struct axisDmaCtrl_params * in);
-static void empty_memspace(struct axisDmaCtrl_params * in);
+static void axisDmaCtrl_txIntrHandler(void *callback);
+static void axisDmaCtrl_rxIntrHandler(void *callback);
+static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr, XAxiDma * axiDmaPtr, u16 txIntrId, u16 rxIntrId);
+static void axisDmaCtrl_disableIntrSystem(XScuGic * intcInstancePtr, u16 txIntrId, u16 rxIntrId);
+static int axisDmaCtrl_rxSetup(XAxiDma * axiDmaInstPtr);
+static int axisDmaCtrl_txSetup(XAxiDma * axiDmaInstPtr);
+static void axisDmaCtrl_txIrqBdHandler(XAxiDma_BdRing * txRingPtr);
+static void axisDmaCtrl_rxIrqBdHandler(XAxiDma_BdRing * rxRingPtr);
+static int axisDmaCtrl_markMemNoncache(struct axisDmaCtrl_params *mem);
+static struct axisDmaCtrl_params axisDmaCtrl_copyParamsStruct(struct axisDmaCtrl_params * in);
+static void axisDmaCtrl_emptyParamsStruct(struct axisDmaCtrl_params * in);
 
 /************************** Variable Definitions *****************************/
-static XAxiDma AxiDma;
+static XAxiDma axiDma;
 
 static tx_cb_t _tx_cb = NULL;
 static rx_cb_t _rx_cb = NULL;
@@ -68,7 +65,7 @@ static struct axisDmaCtrl_params params;
 
 
 int axisDmaCtrl_init(struct axisDmaCtrl_params *paramsIn, 
-	XScuGic * IntcInstancePtr,
+	XScuGic * intcInstancePtr,
 	rx_cb_t rxCb,
 	tx_cb_t txCb)
 {
@@ -77,55 +74,53 @@ int axisDmaCtrl_init(struct axisDmaCtrl_params *paramsIn,
 
 	rc = axisDmaCtrl_register_tx_cb(txCb);
 	if(rc == XST_FAILURE){
-		ERROR_PRINT("axisDmaCtrl_register_tx_cb failed!\r\n");
+		AXISDMA_ERROR_PRINT("axisDmaCtrl_register_tx_cb failed!\r\n");
 		return rc;
 	}
 
 	axisDmaCtrl_register_rx_cb(rxCb);
 	if(rc == XST_FAILURE){
-		ERROR_PRINT("axisDmaCtrl_register_rx_cb failed!\r\n");
+		AXISDMA_ERROR_PRINT("axisDmaCtrl_register_rx_cb failed!\r\n");
 		return rc;
 	}
 
-	params = copy_axisDmaCtrl_params_struct(paramsIn);
+	params = axisDmaCtrl_copyParamsStruct(paramsIn);
 
-	rc = mark_mem_noncache(paramsIn);
+	rc = axisDmaCtrl_markMemNoncache(paramsIn);
 	if (rc) {
-		ERROR_PRINT("mark_mem_noncache failed!\r\n");
+		AXISDMA_ERROR_PRINT("axisDmaCtrl_markMemNoncache failed!\r\n");
 		return XST_FAILURE;
 	}
 
 	config = XAxiDma_LookupConfig(DMA_DEV_ID);
-	rc = XAxiDma_CfgInitialize(&AxiDma, config);
+	rc = XAxiDma_CfgInitialize(&axiDma, config);
 	if(rc){
-		ERROR_PRINT("XAxiDma_CfgInitialize failed!\r\n");
+		AXISDMA_ERROR_PRINT("XAxiDma_CfgInitialize failed!\r\n");
 		return XST_FAILURE;
 	}
 
-
-
-	if(!XAxiDma_HasSg(&AxiDma)) {
-		ERROR_PRINT("DMA NOT in SG Mode...\r\n");
+	if(!XAxiDma_HasSg(&axiDma)) {
+		AXISDMA_ERROR_PRINT("DMA NOT in SG Mode...\r\n");
 		return XST_FAILURE;
 	}
 
 	/* Set up TX/RX channels to be ready to transmit and receive packets */
-	rc = TxSetup(&AxiDma);
+	rc = axisDmaCtrl_txSetup(&axiDma);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("Failed TX setup\r\n");
+		AXISDMA_ERROR_PRINT("Failed TX setup\r\n");
 		return XST_FAILURE;
 	}
 
-	rc = RxSetup(&AxiDma);
+	rc = axisDmaCtrl_rxSetup(&axiDma);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("Failed RX setup\r\n");
+		AXISDMA_ERROR_PRINT("Failed RX setup\r\n");
 		return XST_FAILURE;
 	}
 
 	/* Set up Interrupt system  */
-	rc = SetupIntrSystem(IntcInstancePtr, &AxiDma, TX_INTR_ID, RX_INTR_ID);
+	rc = axisDmaCtrl_setupIntrSystem(intcInstancePtr, &axiDma, TX_INTR_ID, RX_INTR_ID);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("Failed interrupt setup\r\n");
+		AXISDMA_ERROR_PRINT("Failed interrupt setup\r\n");
 		return XST_FAILURE;
 	}
 
@@ -134,24 +129,24 @@ int axisDmaCtrl_init(struct axisDmaCtrl_params *paramsIn,
 
 void axisDmaCtrl_printParams(struct axisDmaCtrl_params *in)
 {
-	printf("rx_bd_space_base 0x%x\r\n",(unsigned int)in->rx_bd_space_base);
-	printf("rx_bd_space_high 0x%x\r\n",(unsigned int)in->rx_bd_space_high);
-	printf("tx_bd_space_base 0x%x\r\n",(unsigned int)in->tx_bd_space_base);
-	printf("tx_bd_space_high 0x%x\r\n",(unsigned int)in->tx_bd_space_high);
-	printf("tx_buffer_base   0x%x\r\n",(unsigned int)in->tx_buffer_base);
-	printf("tx_buffer_high   0x%x\r\n",(unsigned int)in->tx_buffer_high);
-	printf("rx_buffer_base   0x%x\r\n",(unsigned int)in->rx_buffer_base);
-	printf("rx_buffer_high   0x%x\r\n",(unsigned int)in->rx_buffer_high);
-	printf("bd_buf_size      0x%x\r\n",(unsigned int)in->bd_buf_size);
-	printf("coalesce_count   %u\r\n",in->coalesce_count);
+	printf("rx_bd_space_base : 0x%x\r\n",(unsigned int)in->rx_bd_space_base);
+	printf("rx_bd_space_high : 0x%x\r\n",(unsigned int)in->rx_bd_space_high);
+	printf("tx_bd_space_base : 0x%x\r\n",(unsigned int)in->tx_bd_space_base);
+	printf("tx_bd_space_high : 0x%x\r\n",(unsigned int)in->tx_bd_space_high);
+	printf("tx_buffer_base   : 0x%x\r\n",(unsigned int)in->tx_buffer_base);
+	printf("tx_buffer_high   : 0x%x\r\n",(unsigned int)in->tx_buffer_high);
+	printf("rx_buffer_base   : 0x%x\r\n",(unsigned int)in->rx_buffer_base);
+	printf("rx_buffer_high   : 0x%x\r\n",(unsigned int)in->rx_buffer_high);
+	printf("bd_buf_size      : 0x%x\r\n",(unsigned int)in->bd_buf_size);
+	printf("coalesce_count   : %u\r\n",in->coalesce_count);
 }
 
-int axisDmaCtrl_disable(XScuGic * IntcInstancePtr)
+void axisDmaCtrl_disable(XScuGic * intcInstancePtr)
 {
-	DisableIntrSystem(IntcInstancePtr, TX_INTR_ID, RX_INTR_ID);
+	axisDmaCtrl_disableIntrSystem(intcInstancePtr, TX_INTR_ID, RX_INTR_ID);
 	_tx_cb = NULL;
 	_rx_cb = NULL;
-	empty_memspace(&params);
+	axisDmaCtrl_emptyParamsStruct(&params);
 }
 
 int axisDmaCtrl_register_tx_cb(tx_cb_t cb)
@@ -172,8 +167,8 @@ int axisDmaCtrl_register_rx_cb(rx_cb_t cb)
 
 int axisDmaCtrl_sendPackets(uint8_t * packetBuf, size_t packetSize)
 {
-	XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(&AxiDma);
-	XAxiDma_Bd *BdPtr, *BdCurPtr;
+	XAxiDma_BdRing *txRingPtr = XAxiDma_GetTxRing(&axiDma);
+	XAxiDma_Bd *bdPtr, *bdCurPtr;
 	int rc;
 	u32 BufferAddr;
 	int reqBds = 0;
@@ -188,31 +183,31 @@ int axisDmaCtrl_sendPackets(uint8_t * packetBuf, size_t packetSize)
 	 */
 	Xil_DCacheFlushRange((UINTPTR)packetBuf, params.bd_buf_size * reqBds);
 
-	rc = XAxiDma_BdRingAlloc(TxRingPtr, reqBds, &BdPtr);
+	rc = XAxiDma_BdRingAlloc(txRingPtr, reqBds, &bdPtr);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("Failed bd alloc\r\n");
+		AXISDMA_ERROR_PRINT("Failed bd alloc\r\n");
 		return E_NOBDS;
 	}
 
 	BufferAddr = (UINTPTR)packetBuf;
-	BdCurPtr = BdPtr;
+	bdCurPtr = bdPtr;
 
 	for(i = 0; i < reqBds; i++){
 		u32 CrBits = 0;
 
-		rc = XAxiDma_BdSetBufAddr(BdPtr, BufferAddr);
+		rc = XAxiDma_BdSetBufAddr(bdPtr, BufferAddr);
 		if (rc != XST_SUCCESS) {
-			ERROR_PRINT("Tx set buffer addr %x on BD %x failed %d\r\n",
+			AXISDMA_ERROR_PRINT("Tx set buffer addr %x on BD %x failed %d\r\n",
 			(unsigned int)BufferAddr,
-			(UINTPTR)BdPtr, rc);
+			(UINTPTR)bdPtr, rc);
 			return XST_FAILURE;
 		}
 
-		rc = XAxiDma_BdSetLength(BdPtr, params.bd_buf_size,
-					TxRingPtr->MaxTransferLen);
+		rc = XAxiDma_BdSetLength(bdPtr, params.bd_buf_size,
+					txRingPtr->MaxTransferLen);
 		if (rc != XST_SUCCESS) {
-			ERROR_PRINT("Tx set length %d on BD %x failed %d\r\n",
-			params.bd_buf_size, (UINTPTR)BdPtr, rc);
+			AXISDMA_ERROR_PRINT("Tx set length %d on BD %x failed %d\r\n",
+			params.bd_buf_size, (UINTPTR)bdPtr, rc);
 			return XST_FAILURE;
 		}
 
@@ -221,26 +216,26 @@ int axisDmaCtrl_sendPackets(uint8_t * packetBuf, size_t packetSize)
 		if(i == reqBds - 1)
 			CrBits |= XAXIDMA_BD_CTRL_TXEOF_MASK;
 
-		XAxiDma_BdSetCtrl(BdPtr, CrBits);
-		XAxiDma_BdSetId(BdPtr, BufferAddr);
+		XAxiDma_BdSetCtrl(bdPtr, CrBits);
+		XAxiDma_BdSetId(bdPtr, BufferAddr);
 
 		BufferAddr += params.bd_buf_size;
-		BdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(TxRingPtr, BdCurPtr);
+		bdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(txRingPtr, bdCurPtr);
 	}
 
 	/* Give the BD to hardware */
-	rc = XAxiDma_BdRingToHw(TxRingPtr, reqBds, BdPtr);
+	rc = XAxiDma_BdRingToHw(txRingPtr, reqBds, bdPtr);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("Failed to hw, length %d\r\n",
-			(int)XAxiDma_BdGetLength(BdPtr,
-					TxRingPtr->MaxTransferLen));
+		AXISDMA_ERROR_PRINT("Failed to hw, length %d\r\n",
+			(int)XAxiDma_BdGetLength(bdPtr,
+					txRingPtr->MaxTransferLen));
 		return XST_FAILURE;
 	}
 
 	return XST_SUCCESS;
 }
 
-static int mark_mem_noncache(struct axisDmaCtrl_params *mem)
+static int axisDmaCtrl_markMemNoncache(struct axisDmaCtrl_params *mem)
 {
 	size_t i = 0;
 	int invalid_struct = 0;
@@ -267,7 +262,7 @@ static int mark_mem_noncache(struct axisDmaCtrl_params *mem)
 	return XST_SUCCESS;
 }
 
-static struct axisDmaCtrl_params copy_axisDmaCtrl_params_struct(struct axisDmaCtrl_params * in)
+static struct axisDmaCtrl_params axisDmaCtrl_copyParamsStruct(struct axisDmaCtrl_params * in)
 {
 	struct axisDmaCtrl_params tmp;
 	tmp.rx_bd_space_base = in->rx_bd_space_base;
@@ -280,10 +275,12 @@ static struct axisDmaCtrl_params copy_axisDmaCtrl_params_struct(struct axisDmaCt
 	tmp.rx_buffer_high = in->rx_buffer_high;
 	tmp.bd_buf_size = in->bd_buf_size;
 	tmp.coalesce_count = in->coalesce_count;
+	tmp.axisDma_txIrqPriority = in->axisDma_txIrqPriority;
+	tmp.axisDma_rxIrqPriority = in->axisDma_rxIrqPriority;
 	return tmp;
 }
 
-static void empty_memspace(struct axisDmaCtrl_params * in)
+static void axisDmaCtrl_emptyParamsStruct(struct axisDmaCtrl_params * in)
 {
 	in->rx_bd_space_base = 0;
 	in->rx_bd_space_high = 0;
@@ -295,6 +292,8 @@ static void empty_memspace(struct axisDmaCtrl_params * in)
 	in->rx_buffer_high   = 0;
 	in->bd_buf_size      = 0;	
 	in->coalesce_count   = 1;	
+	in->axisDma_rxIrqPriority = 0xff;
+	in->axisDma_txIrqPriority = 0xff;
 }
 
 /*****************************************************************************/
@@ -303,38 +302,38 @@ static void empty_memspace(struct axisDmaCtrl_params * in)
  * * This is the DMA TX callback function to be called by TX interrupt handler.
  * * This function handles BDs finished by hardware.
  * *
- * * @param	TxRingPtr is a pointer to TX channel of the DMA engine.
+ * * @param	txRingPtr is a pointer to TX channel of the DMA engine.
  * *
  * * @return	None.
  * *
  * * @note		None.
  * *
  * ******************************************************************************/
-static void tx_irq_bd_handler(XAxiDma_BdRing * TxRingPtr)
+static void axisDmaCtrl_txIrqBdHandler(XAxiDma_BdRing * txRingPtr)
 {
-	int BdCount;
-	u32 BdSts;
-	XAxiDma_Bd *BdPtr;
-	XAxiDma_Bd *BdCurPtr;
+	int bdCount;
+	u32 bdSts;
+	XAxiDma_Bd *bdPtr;
+	XAxiDma_Bd *bdCurPtr;
 	int rc;
-	int Index;
+	int i;
 
 	/* Get all processed BDs from hardware */
-	BdCount = XAxiDma_BdRingFromHw(TxRingPtr, XAXIDMA_ALL_BDS, &BdPtr);
+	bdCount = XAxiDma_BdRingFromHw(txRingPtr, XAXIDMA_ALL_BDS, &bdPtr);
 
 	/* Handle the BDs */
-	BdCurPtr = BdPtr;
-	for (Index = 0; Index < BdCount; Index++) {
+	bdCurPtr = bdPtr;
+	for (i = 0; i < bdCount; i++) {
 
 		/*
  		 * Check the status in each BD
  		 * If error happens, the DMA engine will be halted after this
  		 * BD processing stops.
  		 */
-		BdSts = XAxiDma_BdGetSts(BdCurPtr);
-		if ((BdSts & XAXIDMA_BD_STS_ALL_ERR_MASK) ||
-		    (!(BdSts & XAXIDMA_BD_STS_COMPLETE_MASK))) {
-			ERROR_PRINT("\r\n");
+		bdSts = XAxiDma_BdGetSts(bdCurPtr);
+		if ((bdSts & XAXIDMA_BD_STS_ALL_ERR_MASK) ||
+		    (!(bdSts & XAXIDMA_BD_STS_COMPLETE_MASK))) {
+			AXISDMA_ERROR_PRINT("\r\n");
 			break;
 		}
 
@@ -345,13 +344,13 @@ static void tx_irq_bd_handler(XAxiDma_BdRing * TxRingPtr)
   		 */
 
 		/* Find the next processed BD */
-		BdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(TxRingPtr, BdCurPtr);
+		bdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(txRingPtr, bdCurPtr);
 	}
 
 	/* Free all processed BDs for future transmission */
-	rc = XAxiDma_BdRingFree(TxRingPtr, BdCount, BdPtr);
+	rc = XAxiDma_BdRingFree(txRingPtr, bdCount, bdPtr);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("XAxiDma_BdRingFree\r\n");
+		AXISDMA_ERROR_PRINT("XAxiDma_BdRingFree\r\n");
 	}
 
 	_tx_cb();
@@ -366,27 +365,27 @@ static void tx_irq_bd_handler(XAxiDma_BdRing * TxRingPtr)
  * * error happens, it resets the hardware. Otherwise, if a completion interrupt
  * * presents, then it calls the callback function.
  * *
- * * @param	Callback is a pointer to TX channel of the DMA engine.
+ * * @param	callback is a pointer to TX channel of the DMA engine.
  * *
  * * @return	None.
  * *
  * * @note		None.
  * *
  * ******************************************************************************/
-static void TxIntrHandler(void *Callback)
+static void axisDmaCtrl_txIntrHandler(void *callback)
 {
-	XAxiDma_BdRing *TxRingPtr = (XAxiDma_BdRing *) Callback;
-	u32 IrqStatus;
-	int TimeOut;
+	XAxiDma_BdRing *txRingPtr = (XAxiDma_BdRing *) callback;
+	u32 irqStatus;
+	int timeOut;
 
 	/* Read pending interrupts */
-	IrqStatus = XAxiDma_BdRingGetIrq(TxRingPtr);
+	irqStatus = XAxiDma_BdRingGetIrq(txRingPtr);
 
 	/* Acknowledge pending interrupts */
-	XAxiDma_BdRingAckIrq(TxRingPtr, IrqStatus);
+	XAxiDma_BdRingAckIrq(txRingPtr, irqStatus);
 
 	/* If no interrupt is asserted, we do not do anything */
-	if (!(IrqStatus & XAXIDMA_IRQ_ALL_MASK)) {
+	if (!(irqStatus & XAXIDMA_IRQ_ALL_MASK)) {
 		return;
 	}
 
@@ -395,22 +394,22 @@ static void TxIntrHandler(void *Callback)
   	 * hardware to recover from the error, and return with no further
   	 * processing.
   	 */
-	if ((IrqStatus & XAXIDMA_IRQ_ERROR_MASK)) {
+	if ((irqStatus & XAXIDMA_IRQ_ERROR_MASK)) {
 
-		XAxiDma_BdRingDumpRegs(TxRingPtr);
-		ERROR_PRINT("XAXIDMA_IRQ_ERROR_MASK\r\n");
+		XAxiDma_BdRingDumpRegs(txRingPtr);
+		AXISDMA_ERROR_PRINT("XAXIDMA_IRQ_ERROR_MASK\r\n");
 
 		/*
  		 * Reset should never fail for transmit channel
  		 */
-		XAxiDma_Reset(&AxiDma);
+		XAxiDma_Reset(&axiDma);
 
-		TimeOut = RESET_TIMEOUT_COUNTER;
-		while (TimeOut) {
-			if (XAxiDma_ResetIsDone(&AxiDma)) {
+		timeOut = RESET_TIMEOUT_COUNTER;
+		while (timeOut) {
+			if (XAxiDma_ResetIsDone(&axiDma)) {
 				break;
 			}
-			TimeOut -= 1;
+			timeOut -= 1;
 		}
 		return;
 	}
@@ -419,8 +418,8 @@ static void TxIntrHandler(void *Callback)
   	 * If Transmit done interrupt is asserted, call TX call back function
   	 * to handle the processed BDs and raise the according flag
   	 */
-	if ((IrqStatus & (XAXIDMA_IRQ_DELAY_MASK | XAXIDMA_IRQ_IOC_MASK))) {
-		tx_irq_bd_handler(TxRingPtr);
+	if ((irqStatus & (XAXIDMA_IRQ_DELAY_MASK | XAXIDMA_IRQ_IOC_MASK))) {
+		axisDmaCtrl_txIrqBdHandler(txRingPtr);
 	}
 }
 
@@ -431,50 +430,50 @@ static void TxIntrHandler(void *Callback)
  * * This function handles finished BDs by hardware, attaches new buffers to those
  * * BDs, and give them back to hardware to receive more incoming packets
  * *
- * * @param	RxRingPtr is a pointer to RX channel of the DMA engine.
+ * * @param	rxRingPtr is a pointer to RX channel of the DMA engine.
  * *
  * * @return	None.
  * *
  * * @note		None.
  * *
  * ******************************************************************************/
-static void rx_irq_bd_handler(XAxiDma_BdRing * RxRingPtr)
+static void axisDmaCtrl_rxIrqBdHandler(XAxiDma_BdRing * rxRingPtr)
 {
-	int BdCount;
-	XAxiDma_Bd *BdPtr;
-	XAxiDma_Bd *BdCurPtr;
-	u32 BdSts;
-	int Index;
-	u32 FreeBdCount;
+	int bdCount;
+	XAxiDma_Bd *bdPtr;
+	XAxiDma_Bd *bdCurPtr;
+	u32 bdSts;
+	int i;
+	u32 freeBdCount;
 	int rc;
 
 	/* Get finished BDs from hardware */
-	BdCount = XAxiDma_BdRingFromHw(RxRingPtr, XAXIDMA_ALL_BDS, &BdPtr);
-	if(BdCount == 0){
+	bdCount = XAxiDma_BdRingFromHw(rxRingPtr, XAXIDMA_ALL_BDS, &bdPtr);
+	if(bdCount == 0){
 		return;
 	}
 
 
-	BdCurPtr = BdPtr;
-	for (Index = 0; Index < BdCount; Index++) {
+	bdCurPtr = bdPtr;
+	for (i = 0; i < bdCount; i++) {
 		
 		/*
  		* Check the flags set by the hardware for status
 		* If error happens, processing stops, because the DMA engine
  		* is halted after this BD.
 		*/
-		BdSts = XAxiDma_BdGetSts(BdCurPtr);
-		if ((BdSts & XAXIDMA_BD_STS_ALL_ERR_MASK) ||
-		    (!(BdSts & XAXIDMA_BD_STS_COMPLETE_MASK))) {
-			ERROR_PRINT("XAxiDma_BdGetSts\r\n");
+		bdSts = XAxiDma_BdGetSts(bdCurPtr);
+		if ((bdSts & XAXIDMA_BD_STS_ALL_ERR_MASK) ||
+		    (!(bdSts & XAXIDMA_BD_STS_COMPLETE_MASK))) {
+			AXISDMA_ERROR_PRINT("XAxiDma_BdGetSts\r\n");
 			break;
 		}
 
 		/* get memory offset of current bd */
-		uint32_t addr   = XAxiDma_BdGetBufAddr(BdCurPtr);
-		uint32_t pktLen = XAxiDma_BdGetActualLength(BdCurPtr,params.bd_buf_size);
-		// XAxiDma_DumpBd(BdCurPtr);
-		// printf("-- %s: (BdCount %d) rx packet %04d @ 0x%x len %lu\r\n",__func__,BdCount,RxDone,(unsigned int)addr,pktLen);
+		uint32_t addr   = XAxiDma_BdGetBufAddr(bdCurPtr);
+		uint32_t pktLen = XAxiDma_BdGetActualLength(bdCurPtr,params.bd_buf_size);
+		// XAxiDma_DumpBd(bdCurPtr);
+		// printf("-- %s: (bdCount %d) rx packet %04d @ 0x%x len %lu\r\n",__func__,bdCount,RxDone,(unsigned int)addr,pktLen);
 
 		_rx_cb(addr, pktLen);
 
@@ -484,9 +483,9 @@ static void rx_irq_bd_handler(XAxiDma_BdRing * RxRingPtr)
 		int j = 0;
 		for(j = 0; j < params.bd_buf_size; j++){
 			if(*(rxPacket+j) != txPkt[j]){
-				ERROR_PRINT("[%04d]: tx %03d, rx %03d @ 0x%x; RxDone=%04d\r\n",j,txPkt[j],*(rxPacket+j),(rxPacket+j),RxDone);
-				// XAxiDma_BdRingDumpRegs(RxRingPtr);
-				XAxiDma_DumpBd(BdCurPtr);
+				AXISDMA_ERROR_PRINT("[%04d]: tx %03d, rx %03d @ 0x%x; RxDone=%04d\r\n",j,txPkt[j],*(rxPacket+j),(rxPacket+j),RxDone);
+				// XAxiDma_BdRingDumpRegs(rxRingPtr);
+				XAxiDma_DumpBd(bdCurPtr);
 				break;
 			}
 		}
@@ -497,29 +496,29 @@ static void rx_irq_bd_handler(XAxiDma_BdRing * RxRingPtr)
 		#endif
 		
 		/* Find the next processed BD */
-		if(Index != BdCount-1)
-			BdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(RxRingPtr, BdCurPtr);
+		if(i != bdCount-1)
+			bdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(rxRingPtr, bdCurPtr);
 	}
 
 	
-	rc = XAxiDma_BdRingFree(RxRingPtr, BdCount, BdPtr);
+	rc = XAxiDma_BdRingFree(rxRingPtr, bdCount, bdPtr);
 	if(rc != XST_SUCCESS)
-		ERROR_PRINT("XAxiDma_BdRingFree rc %d\r\n",rc);
+		AXISDMA_ERROR_PRINT("XAxiDma_BdRingFree rc %d\r\n",rc);
 
 	/* Return processed BDs to RX channel so we are ready to receive new
 	 * packets:
 	 *    - Allocate all free RX BDs
 	 *    - Pass the BDs to RX channel
 	 */
-	FreeBdCount = XAxiDma_BdRingGetFreeCnt(RxRingPtr);
-	rc = XAxiDma_BdRingAlloc(RxRingPtr, FreeBdCount, &BdPtr);
+	freeBdCount = XAxiDma_BdRingGetFreeCnt(rxRingPtr);
+	rc = XAxiDma_BdRingAlloc(rxRingPtr, freeBdCount, &bdPtr);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("XAxiDma_BdRingAlloc failed %d - FreeBdCount %u\r\n",rc,FreeBdCount);
+		AXISDMA_ERROR_PRINT("XAxiDma_BdRingAlloc failed %d - freeBdCount %u\r\n",rc,freeBdCount);
 	}
 
-	rc = XAxiDma_BdRingToHw(RxRingPtr, FreeBdCount, BdPtr);
+	rc = XAxiDma_BdRingToHw(rxRingPtr, freeBdCount, bdPtr);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("XAxiDma_BdRingToHw failed %d\r\n",rc);
+		AXISDMA_ERROR_PRINT("XAxiDma_BdRingToHw failed %d\r\n",rc);
 	}
 }
 
@@ -532,29 +531,29 @@ static void rx_irq_bd_handler(XAxiDma_BdRing * RxRingPtr)
  * * error happens, it resets the hardware. Otherwise, if a completion interrupt
  * * presents, then it calls the callback function.
  * *
- * * @param	Callback is a pointer to RX channel of the DMA engine.
+ * * @param	callback is a pointer to RX channel of the DMA engine.
  * *
  * * @return	None.
  * *
  * * @note		None.
  * *
  * ******************************************************************************/
-static void RxIntrHandler(void *Callback)
+static void axisDmaCtrl_rxIntrHandler(void *callback)
 {
-	XAxiDma_BdRing *RxRingPtr = (XAxiDma_BdRing *) Callback;
-	u32 IrqStatus;
-	int TimeOut;
+	XAxiDma_BdRing *rxRingPtr = (XAxiDma_BdRing *) callback;
+	u32 irqStatus;
+	int timeOut;
 
 	/* Read pending interrupts */
-	IrqStatus = XAxiDma_BdRingGetIrq(RxRingPtr);
+	irqStatus = XAxiDma_BdRingGetIrq(rxRingPtr);
 
 	/* Acknowledge pending interrupts */
-	XAxiDma_BdRingAckIrq(RxRingPtr, IrqStatus);
+	XAxiDma_BdRingAckIrq(rxRingPtr, irqStatus);
 
 	/*
   	 * If no interrupt is asserted, we do not do anything
   	 */
-	if (!(IrqStatus & XAXIDMA_IRQ_ALL_MASK)) {
+	if (!(irqStatus & XAXIDMA_IRQ_ALL_MASK)) {
 		return;
 	}
 
@@ -563,24 +562,24 @@ static void RxIntrHandler(void *Callback)
   	 * hardware to recover from the error, and return with no further
   	 * processing.
   	 */
-	if ((IrqStatus & XAXIDMA_IRQ_ERROR_MASK)) {
+	if ((irqStatus & XAXIDMA_IRQ_ERROR_MASK)) {
 
-		XAxiDma_BdRingDumpRegs(RxRingPtr);
-		ERROR_PRINT("\r\n");
+		XAxiDma_BdRingDumpRegs(rxRingPtr);
+		AXISDMA_ERROR_PRINT("\r\n");
 
 		/* Reset could fail and hang
   		 * NEED a way to handle this or do not call it??
   		 */
-		XAxiDma_Reset(&AxiDma);
+		XAxiDma_Reset(&axiDma);
 
-		TimeOut = RESET_TIMEOUT_COUNTER;
+		timeOut = RESET_TIMEOUT_COUNTER;
 
-		while (TimeOut) {
-			if(XAxiDma_ResetIsDone(&AxiDma)) {
+		while (timeOut) {
+			if(XAxiDma_ResetIsDone(&axiDma)) {
 				break;
 			}
 
-			TimeOut -= 1;
+			timeOut -= 1;
 		}
 
 		return;
@@ -590,8 +589,8 @@ static void RxIntrHandler(void *Callback)
    	 * If completion interrupt is asserted, call RX call back function
   	 * to handle the processed BDs and then raise the according flag.
   	 */
-	if ((IrqStatus & (XAXIDMA_IRQ_DELAY_MASK | XAXIDMA_IRQ_IOC_MASK))) {
-		rx_irq_bd_handler(RxRingPtr);
+	if ((irqStatus & (XAXIDMA_IRQ_DELAY_MASK | XAXIDMA_IRQ_IOC_MASK))) {
+		axisDmaCtrl_rxIrqBdHandler(rxRingPtr);
 	}
 }
 
@@ -601,10 +600,10 @@ static void RxIntrHandler(void *Callback)
  * * This function setups the interrupt system so interrupts can occur for the
  * * DMA, it assumes XScuGic component exists in the hardware system.
  * *
- * * @param	IntcInstancePtr is a pointer to the instance of the XScuGic.
- * * @param	AxiDmaPtr is a pointer to the instance of the DMA engine
- * * @param	TxIntrId is the TX channel Interrupt ID.
- * * @param	RxIntrId is the RX channel Interrupt ID.
+ * * @param	intcInstancePtr is a pointer to the instance of the XScuGic.
+ * * @param	axiDmaPtr is a pointer to the instance of the DMA engine
+ * * @param	txIntrId is the TX channel Interrupt ID.
+ * * @param	rxIntrId is the RX channel Interrupt ID.
  * *
  * * @return
  * *		- XST_SUCCESS if successful,
@@ -614,62 +613,62 @@ static void RxIntrHandler(void *Callback)
  * *
  * ******************************************************************************/
 
-static int SetupIntrSystem(XScuGic * IntcInstancePtr,
-			   XAxiDma * AxiDmaPtr, u16 TxIntrId, u16 RxIntrId)
+static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr,
+			   XAxiDma * axiDmaPtr, u16 txIntrId, u16 rxIntrId)
 {
-	XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(&AxiDma);
-	XAxiDma_BdRing *RxRingPtr = XAxiDma_GetRxRing(&AxiDma);
+	XAxiDma_BdRing *txRingPtr = XAxiDma_GetTxRing(&axiDma);
+	XAxiDma_BdRing *rxRingPtr = XAxiDma_GetRxRing(&axiDma);
 	int rc;
 
-	XScuGic_Config *IntcConfig;
+	XScuGic_Config *intcConfig;
 
 
 	/*
   	 * Initialize the interrupt controller driver so that it is ready to
   	 * use.
   	 */
-	IntcConfig = XScuGic_LookupConfig(XScuGic_DEVICE_ID);
-	if (NULL == IntcConfig) {
+	intcConfig = XScuGic_LookupConfig(XScuGic_DEVICE_ID);
+	if (NULL == intcConfig) {
 		return XST_FAILURE;
 	}
 
-	rc = XScuGic_CfgInitialize(IntcInstancePtr, IntcConfig,
-					IntcConfig->CpuBaseAddress);
+	rc = XScuGic_CfgInitialize(intcInstancePtr, intcConfig,
+					intcConfig->CpuBaseAddress);
 	if (rc != XST_SUCCESS) {
 		return XST_FAILURE;
 	}
 
 
-	XScuGic_SetPriorityTriggerType(IntcInstancePtr, TxIntrId, 0xA0, 0x3);
+	XScuGic_SetPriorityTriggerType(intcInstancePtr, txIntrId, params.axisDma_txIrqPriority, 0x3);
 
-	XScuGic_SetPriorityTriggerType(IntcInstancePtr, RxIntrId, 0xA0, 0x3);
+	XScuGic_SetPriorityTriggerType(intcInstancePtr, rxIntrId, params.axisDma_rxIrqPriority, 0x3);
 	/*
   	 * Connect the device driver handler that will be called when an
   	 * interrupt for the device occurs, the handler defined above performs
   	 * the specific interrupt processing for the device.
   	 */
-	rc = XScuGic_Connect(IntcInstancePtr, TxIntrId,
-				(Xil_InterruptHandler)TxIntrHandler,
-				TxRingPtr);
+	rc = XScuGic_Connect(intcInstancePtr, txIntrId,
+				(Xil_InterruptHandler)axisDmaCtrl_txIntrHandler,
+				txRingPtr);
 	if (rc != XST_SUCCESS) {
 		return rc;
 	}
 
-	rc = XScuGic_Connect(IntcInstancePtr, RxIntrId,
-				(Xil_InterruptHandler)RxIntrHandler,
-				RxRingPtr);
+	rc = XScuGic_Connect(intcInstancePtr, rxIntrId,
+				(Xil_InterruptHandler)axisDmaCtrl_rxIntrHandler,
+				rxRingPtr);
 	if (rc != XST_SUCCESS) {
 		return rc;
 	}
 
-	XScuGic_Enable(IntcInstancePtr, TxIntrId);
-	XScuGic_Enable(IntcInstancePtr, RxIntrId);
+	XScuGic_Enable(intcInstancePtr, txIntrId);
+	XScuGic_Enable(intcInstancePtr, rxIntrId);
 
 	/* Enable interrupts from the hardware */
 	Xil_ExceptionInit();
 	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT,
 			(Xil_ExceptionHandler)XScuGic_HANDLER,
-			(void *)IntcInstancePtr);
+			(void *)intcInstancePtr);
 
 	Xil_ExceptionEnable();
 
@@ -681,20 +680,20 @@ static int SetupIntrSystem(XScuGic * IntcInstancePtr,
  * *
  * * This function disables the interrupts for DMA engine.
  * *
- * * @param	IntcInstancePtr is the pointer to the XScuGic component instance
- * * @param	TxIntrId is interrupt ID associated w/ DMA TX channel
- * * @param	RxIntrId is interrupt ID associated w/ DMA RX channel
+ * * @param	intcInstancePtr is the pointer to the XScuGic component instance
+ * * @param	txIntrId is interrupt ID associated w/ DMA TX channel
+ * * @param	rxIntrId is interrupt ID associated w/ DMA RX channel
  * *
  * * @return	None.
  * *
  * * @note		None.
  * *
  * ******************************************************************************/
-static void DisableIntrSystem(XScuGic * IntcInstancePtr,
-					u16 TxIntrId, u16 RxIntrId)
+static void axisDmaCtrl_disableIntrSystem(XScuGic * intcInstancePtr,
+					u16 txIntrId, u16 rxIntrId)
 {
-	XScuGic_Disconnect(IntcInstancePtr, TxIntrId);
-	XScuGic_Disconnect(IntcInstancePtr, RxIntrId);
+	XScuGic_Disconnect(intcInstancePtr, txIntrId);
+	XScuGic_Disconnect(intcInstancePtr, rxIntrId);
 }
 
 /*****************************************************************************/
@@ -703,7 +702,7 @@ static void DisableIntrSystem(XScuGic * IntcInstancePtr,
  * * This function sets up RX channel of the DMA engine to be ready for packet
  * * reception
  * *
- * * @param	AxiDmaInstPtr is the pointer to the instance of the DMA engine.
+ * * @param	axiDmaInstPtr is the pointer to the instance of the DMA engine.
  * *
  * * @return	- XST_SUCCESS if the setup is successful.
  * *		- XST_FAILURE if fails.
@@ -711,74 +710,74 @@ static void DisableIntrSystem(XScuGic * IntcInstancePtr,
  * * @note		None.
  * *
  * ******************************************************************************/
-static int RxSetup(XAxiDma * AxiDmaInstPtr)
+static int axisDmaCtrl_rxSetup(XAxiDma * axiDmaInstPtr)
 {
-	XAxiDma_BdRing *RxRingPtr;
+	XAxiDma_BdRing *rxRingPtr;
 	int rc;
-	XAxiDma_Bd BdTemplate;
-	XAxiDma_Bd *BdPtr;
-	XAxiDma_Bd *BdCurPtr;
-	int BdCount;
-	int FreeBdCount;
-	u32 RxBufferPtr;
-	int Index;
+	XAxiDma_Bd bdTemplate;
+	XAxiDma_Bd *bdPtr;
+	XAxiDma_Bd *bdCurPtr;
+	int bdCount;
+	int freeBdCount;
+	u32 rxBufferPtr;
+	int i;
 
-	RxRingPtr = XAxiDma_GetRxRing(AxiDmaInstPtr);
+	rxRingPtr = XAxiDma_GetRxRing(axiDmaInstPtr);
 
 	/* Disable all RX interrupts before RxBD space setup */
-	XAxiDma_BdRingIntDisable(RxRingPtr, XAXIDMA_IRQ_ALL_MASK);
+	XAxiDma_BdRingIntDisable(rxRingPtr, XAXIDMA_IRQ_ALL_MASK);
 
 	/* Setup Rx BD space */
-	BdCount = XAxiDma_BdRingCntCalc(XAXIDMA_BD_MINIMUM_ALIGNMENT,
+	bdCount = XAxiDma_BdRingCntCalc(XAXIDMA_BD_MINIMUM_ALIGNMENT,
 				params.rx_bd_space_high - params.rx_bd_space_base + 1);
 
-	rc = XAxiDma_BdRingCreate(RxRingPtr, params.rx_bd_space_base,
+	rc = XAxiDma_BdRingCreate(rxRingPtr, params.rx_bd_space_base,
 					params.rx_bd_space_base,
-					XAXIDMA_BD_MINIMUM_ALIGNMENT, BdCount);
+					XAXIDMA_BD_MINIMUM_ALIGNMENT, bdCount);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("Rx bd create failed with %d\r\n", rc);
+		AXISDMA_ERROR_PRINT("Rx bd create failed with %d\r\n", rc);
 		return XST_FAILURE;
 	}
-	DEBUG_PRINT("%d rx bds created\r\n",BdCount);
+	AXISDMA_DEBUG_PRINT("%d rx bds created\r\n",bdCount);
 
 	/*
   	 * Setup a BD template for the Rx channel. Then copy it to every RX BD.
   	 */
-	XAxiDma_BdClear(&BdTemplate);
-	rc = XAxiDma_BdRingClone(RxRingPtr, &BdTemplate);
+	XAxiDma_BdClear(&bdTemplate);
+	rc = XAxiDma_BdRingClone(rxRingPtr, &bdTemplate);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("Rx bd clone failed with %d\r\n", rc);
+		AXISDMA_ERROR_PRINT("Rx bd clone failed with %d\r\n", rc);
 		return XST_FAILURE;
 	}
 
 	/* Attach buffers to RxBD ring so we are ready to receive packets */
-	FreeBdCount = XAxiDma_BdRingGetFreeCnt(RxRingPtr);
+	freeBdCount = XAxiDma_BdRingGetFreeCnt(rxRingPtr);
 
-	rc = XAxiDma_BdRingAlloc(RxRingPtr, FreeBdCount, &BdPtr);
+	rc = XAxiDma_BdRingAlloc(rxRingPtr, freeBdCount, &bdPtr);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("Rx bd alloc failed with %d\r\n", rc);
+		AXISDMA_ERROR_PRINT("Rx bd alloc failed with %d\r\n", rc);
 		return XST_FAILURE;
 	}
 
-	BdCurPtr = BdPtr;
-	RxBufferPtr = params.rx_buffer_base;
+	bdCurPtr = bdPtr;
+	rxBufferPtr = params.rx_buffer_base;
 
-	for (Index = 0; Index < FreeBdCount; Index++) {
+	for (i = 0; i < freeBdCount; i++) {
 
-		rc = XAxiDma_BdSetBufAddr(BdCurPtr, RxBufferPtr);
+		rc = XAxiDma_BdSetBufAddr(bdCurPtr, rxBufferPtr);
 		if (rc != XST_SUCCESS) {
-			ERROR_PRINT("Rx set buffer addr %x on BD %x failed %d\r\n",
-			(unsigned int)RxBufferPtr,
-			(UINTPTR)BdCurPtr, rc);
+			AXISDMA_ERROR_PRINT("Rx set buffer addr %x on BD %x failed %d\r\n",
+			(unsigned int)rxBufferPtr,
+			(UINTPTR)bdCurPtr, rc);
 
 			return XST_FAILURE;
 		}
 
-		rc = XAxiDma_BdSetLength(BdCurPtr, params.bd_buf_size,
-					RxRingPtr->MaxTransferLen);
+		rc = XAxiDma_BdSetLength(bdCurPtr, params.bd_buf_size,
+					rxRingPtr->MaxTransferLen);
 		if (rc != XST_SUCCESS) {
-			ERROR_PRINT("Rx set length %d on BD %x failed %d\r\n",
-			    params.bd_buf_size, (UINTPTR)BdCurPtr, rc);
+			AXISDMA_ERROR_PRINT("Rx set length %d on BD %x failed %d\r\n",
+			    params.bd_buf_size, (UINTPTR)bdCurPtr, rc);
 
 			return XST_FAILURE;
 		}
@@ -786,44 +785,44 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
 		/* Receive BDs do not need to set anything for the control
   		 * The hardware will set the SOF/EOF bits per stream status
   		 */
-		XAxiDma_BdSetCtrl(BdCurPtr, 0);
+		XAxiDma_BdSetCtrl(bdCurPtr, 0);
 
-		XAxiDma_BdSetId(BdCurPtr, RxBufferPtr);
+		XAxiDma_BdSetId(bdCurPtr, rxBufferPtr);
 
-		RxBufferPtr += params.bd_buf_size;
-		BdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(RxRingPtr, BdCurPtr);
+		rxBufferPtr += params.bd_buf_size;
+		bdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(rxRingPtr, bdCurPtr);
 	}
 
-	rc = XAxiDma_BdRingSetCoalesce(RxRingPtr, params.coalesce_count,
+	rc = XAxiDma_BdRingSetCoalesce(rxRingPtr, params.coalesce_count,
 			DELAY_TIMER_COUNT);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("Rx set coalesce failed with %d\r\n", rc);
+		AXISDMA_ERROR_PRINT("Rx set coalesce failed with %d\r\n", rc);
 		return XST_FAILURE;
 	}
 
-	rc = XAxiDma_BdRingToHw(RxRingPtr, FreeBdCount, BdPtr);
+	rc = XAxiDma_BdRingToHw(rxRingPtr, freeBdCount, bdPtr);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("Rx ToHw failed with %d\r\n", rc);
+		AXISDMA_ERROR_PRINT("Rx ToHw failed with %d\r\n", rc);
 		return XST_FAILURE;
 	}
 
-	rc = XAxiDma_BdRingCheck(RxRingPtr);
+	rc = XAxiDma_BdRingCheck(rxRingPtr);
 	if(rc != XST_SUCCESS){
-		ERROR_PRINT("Failed XAxiDma_BdRingCheck %d\r\n",rc);
+		AXISDMA_ERROR_PRINT("Failed XAxiDma_BdRingCheck %d\r\n",rc);
 		return XST_FAILURE;
 	}
 
 	/* Enable all RX interrupts */
-	XAxiDma_BdRingIntEnable(RxRingPtr, XAXIDMA_IRQ_ALL_MASK);
+	XAxiDma_BdRingIntEnable(rxRingPtr, XAXIDMA_IRQ_ALL_MASK);
 
 	/* Enable Cyclic DMA mode */
-	// XAxiDma_BdRingEnableCyclicDMA(RxRingPtr);
-	// XAxiDma_SelectCyclicMode(AxiDmaInstPtr, XAXIDMA_DEVICE_TO_DMA, 1);
+	// XAxiDma_BdRingEnableCyclicDMA(rxRingPtr);
+	// XAxiDma_SelectCyclicMode(axiDmaInstPtr, XAXIDMA_DEVICE_TO_DMA, 1);
 
 	/* Start RX DMA channel */
-	rc = XAxiDma_BdRingStart(RxRingPtr);
+	rc = XAxiDma_BdRingStart(rxRingPtr);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("Rx start BD ring failed with %d\r\n", rc);
+		AXISDMA_ERROR_PRINT("Rx start BD ring failed with %d\r\n", rc);
 		return XST_FAILURE;
 	}
 
@@ -836,7 +835,7 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
  * * This function sets up the TX channel of a DMA engine to be ready for packet
  * * transmission.
  * *
- * * @param	AxiDmaInstPtr is the pointer to the instance of the DMA engine.
+ * * @param	axiDmaInstPtr is the pointer to the instance of the DMA engine.
  * *
  * * @return	- XST_SUCCESS if the setup is successful.
  * *		- XST_FAILURE otherwise.
@@ -844,27 +843,27 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
  * * @note		None.
  * *
  * ******************************************************************************/
-static int TxSetup(XAxiDma * AxiDmaInstPtr)
+static int axisDmaCtrl_txSetup(XAxiDma * axiDmaInstPtr)
 {
-	XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(AxiDmaInstPtr);
-	XAxiDma_Bd BdTemplate;
+	XAxiDma_BdRing *txRingPtr = XAxiDma_GetTxRing(axiDmaInstPtr);
+	XAxiDma_Bd bdTemplate;
 	int rc;
-	u32 BdCount;
+	u32 bdCount;
 
 	/* Disable all TX interrupts before TxBD space setup */
-	XAxiDma_BdRingIntDisable(TxRingPtr, XAXIDMA_IRQ_ALL_MASK);
+	XAxiDma_BdRingIntDisable(txRingPtr, XAXIDMA_IRQ_ALL_MASK);
 
 	/* Setup TxBD space  */
-	BdCount = XAxiDma_BdRingCntCalc(XAXIDMA_BD_MINIMUM_ALIGNMENT,
+	bdCount = XAxiDma_BdRingCntCalc(XAXIDMA_BD_MINIMUM_ALIGNMENT,
 			(u32)params.tx_bd_space_high - (u32)params.tx_bd_space_base + 1);
-	DEBUG_PRINT("%d tx bds created\r\n",(int)BdCount);
+	AXISDMA_DEBUG_PRINT("%d tx bds created\r\n",(int)bdCount);
 
-	rc = XAxiDma_BdRingCreate(TxRingPtr, params.tx_bd_space_base,
+	rc = XAxiDma_BdRingCreate(txRingPtr, params.tx_bd_space_base,
 				     params.tx_bd_space_base,
-				     XAXIDMA_BD_MINIMUM_ALIGNMENT, BdCount);
+				     XAXIDMA_BD_MINIMUM_ALIGNMENT, bdCount);
 	if (rc != XST_SUCCESS) {
 
-		ERROR_PRINT("Failed create BD ring\r\n");
+		AXISDMA_ERROR_PRINT("Failed create BD ring\r\n");
 		return XST_FAILURE;
 	}
 
@@ -872,11 +871,11 @@ static int TxSetup(XAxiDma * AxiDmaInstPtr)
   	 * Like the RxBD space, we create a template and set all BDs to be the
   	 * same as the template. The sender has to set up the BDs as needed.
 	 */
-	XAxiDma_BdClear(&BdTemplate);
-	rc = XAxiDma_BdRingClone(TxRingPtr, &BdTemplate);
+	XAxiDma_BdClear(&bdTemplate);
+	rc = XAxiDma_BdRingClone(txRingPtr, &bdTemplate);
 	if (rc != XST_SUCCESS) {
 
-		ERROR_PRINT("Failed clone BDs\r\n");
+		AXISDMA_ERROR_PRINT("Failed clone BDs\r\n");
 		return XST_FAILURE;
 	}
 
@@ -887,28 +886,28 @@ static int TxSetup(XAxiDma * AxiDmaInstPtr)
   	 * If you would like to have multiple interrupts to happen, change
   	 * the params.coalesce_count to be a smaller value
   	 */
-	rc = XAxiDma_BdRingSetCoalesce(TxRingPtr, params.coalesce_count,
+	rc = XAxiDma_BdRingSetCoalesce(txRingPtr, params.coalesce_count,
 			DELAY_TIMER_COUNT);
 	if (rc != XST_SUCCESS) {
-		ERROR_PRINT("Failed set coalescing"
+		AXISDMA_ERROR_PRINT("Failed set coalescing"
 		" %d/%d\r\n",params.coalesce_count, DELAY_TIMER_COUNT);
 		return XST_FAILURE;
 	}
 
-	rc = XAxiDma_BdRingCheck(TxRingPtr);
+	rc = XAxiDma_BdRingCheck(txRingPtr);
 	if(rc != XST_SUCCESS){
-		ERROR_PRINT("Failed XAxiDma_BdRingCheck %d\r\n",rc);
+		AXISDMA_ERROR_PRINT("Failed XAxiDma_BdRingCheck %d\r\n",rc);
 		return XST_FAILURE;
 	}
 
 	/* Enable all TX interrupts */
-	XAxiDma_BdRingIntEnable(TxRingPtr, XAXIDMA_IRQ_ALL_MASK);
+	XAxiDma_BdRingIntEnable(txRingPtr, XAXIDMA_IRQ_ALL_MASK);
 
 	/* Start the TX channel */
-	rc = XAxiDma_BdRingStart(TxRingPtr);
+	rc = XAxiDma_BdRingStart(txRingPtr);
 	if (rc != XST_SUCCESS) {
 
-		ERROR_PRINT("Failed bd start\r\n");
+		AXISDMA_ERROR_PRINT("Failed bd start\r\n");
 		return XST_FAILURE;
 	}
 
