@@ -1,5 +1,6 @@
 PTOP                     = $(shell pwd)
-VALID_TARGETS            = zedboardVanilla 
+VALID_TARGETS            = zedboard \
+                           zybo 
 CLEAN_TARGETS            = $(VALID_TARGETS) \
 							.Xil \
 							*.layout \
