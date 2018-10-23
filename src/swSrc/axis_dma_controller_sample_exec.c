@@ -10,8 +10,8 @@
 #define MEM_BASE_ADDR		(XPAR_PS7_DDR_0_S_AXI_BASEADDR + 0x1000000) /* 0x00100000 - 0x001fffff */
 #define MEM_REGION_BD_SIZE      (0x0000FFF)
 #define MEM_REGION_BUF_SIZE     (0x0001FFF)
-#define BD_BUF_SIZE             60
-#define MAX_PKT_SIZE            666
+int BD_BUF_SIZE;
+int MAX_PKT_SIZE;
 
 #define DMA_DEV_ID	   XPAR_AXIDMA_0_DEVICE_ID
 #define XScuGic_DEVICE_ID  XPAR_SCUGIC_SINGLE_DEVICE_ID
@@ -26,16 +26,19 @@ static int pkt_complete = 1;
 static int pkt_bytes_rx = 0;
 
 static XScuGic intc;
-static uint8_t txPkt[MAX_PKT_SIZE];
+static uint8_t txPkt[1024*1024];
 
 static void tx_callback(void);
 static void rx_callback(uint32_t buf_addr, uint32_t buf_len);
 
-int axis_dma_controller_sample_exec(int numTestPkts)
+int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 {
 	int rc;
 	struct axisDmaCtrl_params params;
 	int i;
+
+	BD_BUF_SIZE  = bufSize;
+	MAX_PKT_SIZE = pktSize;
 
 	params.rx_bd_space_base = MEM_BASE_ADDR;
 	params.rx_bd_space_high = params.rx_bd_space_base + MEM_REGION_BD_SIZE;
@@ -55,8 +58,9 @@ int axis_dma_controller_sample_exec(int numTestPkts)
 
 	axisDmaCtrl_printParams(&params);
 
-	tx_bd_count = 0;
-	rx_bd_count = 0;
+	tx_bd_count  = 0;
+	rx_bd_count  = 0;
+	rx_pkt_count = 0;
 	error    = 0;
 	pkt_complete = 1;
 	pkt_bytes_rx = 0;
@@ -81,7 +85,7 @@ int axis_dma_controller_sample_exec(int numTestPkts)
 		printf("!! Test Failed w/ error !!\r\n");
 		return XST_FAILURE;
 	}
-	printf("Test successful\r\n");
+	printf("Test successful\r\n\n");
 	
 	axisDmaCtrl_disable(&intc);
 
