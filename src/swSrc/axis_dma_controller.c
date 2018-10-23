@@ -36,13 +36,13 @@
 /************************** Function Prototypes ******************************/
 static void axisDmaCtrl_txIntrHandler(void *callback);
 static void axisDmaCtrl_rxIntrHandler(void *callback);
-static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr, XAxiDma * axiDmaPtr, u16 txIntrId, u16 rxIntrId);
-static void axisDmaCtrl_disableIntrSystem(XScuGic * intcInstancePtr, u16 txIntrId, u16 rxIntrId);
+static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr);
+static void axisDmaCtrl_disableIntrSystem(XScuGic * intcInstancePtr);
 static int axisDmaCtrl_rxSetup(XAxiDma * axiDmaInstPtr);
 static int axisDmaCtrl_txSetup(XAxiDma * axiDmaInstPtr);
 static void axisDmaCtrl_txIrqBdHandler(XAxiDma_BdRing * txRingPtr);
 static void axisDmaCtrl_rxIrqBdHandler(XAxiDma_BdRing * rxRingPtr);
-static int axisDmaCtrl_markMemNoncache(struct axisDmaCtrl_params *mem);
+static int axisDmaCtrl_markMemNoncache(void);
 static struct axisDmaCtrl_params axisDmaCtrl_copyParamsStruct(struct axisDmaCtrl_params * in);
 static void axisDmaCtrl_emptyParamsStruct(struct axisDmaCtrl_params * in);
 
@@ -57,34 +57,35 @@ static struct axisDmaCtrl_params params;
 int axisDmaCtrl_init(struct axisDmaCtrl_params *paramsIn, 
 	XScuGic * intcInstancePtr,
 	rx_cb_t rxCb,
-	tx_cb_t txCb)
+	tx_cb_t txCb
+	)
 {
 	int rc;
 	XAxiDma_Config *config;
 
 	rc = axisDmaCtrl_register_tx_cb(txCb);
-	if(rc == XST_FAILURE){
+	if (rc != XST_SUCCESS) {
 		AXISDMA_ERROR_PRINT("axisDmaCtrl_register_tx_cb failed!\r\n");
 		return rc;
 	}
 
 	axisDmaCtrl_register_rx_cb(rxCb);
-	if(rc == XST_FAILURE){
+	if (rc != XST_SUCCESS) {
 		AXISDMA_ERROR_PRINT("axisDmaCtrl_register_rx_cb failed!\r\n");
 		return rc;
 	}
 
 	params = axisDmaCtrl_copyParamsStruct(paramsIn);
 
-	rc = axisDmaCtrl_markMemNoncache(paramsIn);
-	if (rc) {
+	rc = axisDmaCtrl_markMemNoncache();
+	if (rc != XST_SUCCESS) {
 		AXISDMA_ERROR_PRINT("axisDmaCtrl_markMemNoncache failed!\r\n");
 		return XST_FAILURE;
 	}
 
-	config = XAxiDma_LookupConfig(params.axisDma_dmaDevId);
+	config = XAxiDma_LookupConfig(params.dmaDevId);
 	rc = XAxiDma_CfgInitialize(&axiDma, config);
-	if(rc){
+	if (rc != XST_SUCCESS) {
 		AXISDMA_ERROR_PRINT("XAxiDma_CfgInitialize failed!\r\n");
 		return XST_FAILURE;
 	}
@@ -95,20 +96,24 @@ int axisDmaCtrl_init(struct axisDmaCtrl_params *paramsIn,
 	}
 
 	/* Set up TX/RX channels to be ready to transmit and receive packets */
-	rc = axisDmaCtrl_txSetup(&axiDma);
-	if (rc != XST_SUCCESS) {
-		AXISDMA_ERROR_PRINT("Failed TX setup\r\n");
-		return XST_FAILURE;
+	if(params.txEn){
+		rc = axisDmaCtrl_txSetup(&axiDma);
+		if (rc != XST_SUCCESS) {
+			AXISDMA_ERROR_PRINT("Failed TX setup\r\n");
+			return XST_FAILURE;
+		}
 	}
 
-	rc = axisDmaCtrl_rxSetup(&axiDma);
-	if (rc != XST_SUCCESS) {
-		AXISDMA_ERROR_PRINT("Failed RX setup\r\n");
-		return XST_FAILURE;
+	if(params.rxEn){
+		rc = axisDmaCtrl_rxSetup(&axiDma);
+		if (rc != XST_SUCCESS) {
+			AXISDMA_ERROR_PRINT("Failed RX setup\r\n");
+			return XST_FAILURE;
+		}
 	}
 
 	/* Set up Interrupt system  */
-	rc = axisDmaCtrl_setupIntrSystem(intcInstancePtr, &axiDma, params.axisDma_txIrqId, params.axisDma_rxIrqId);
+	rc = axisDmaCtrl_setupIntrSystem(intcInstancePtr);
 	if (rc != XST_SUCCESS) {
 		AXISDMA_ERROR_PRINT("Failed interrupt setup\r\n");
 		return XST_FAILURE;
@@ -128,17 +133,19 @@ void axisDmaCtrl_printParams(struct axisDmaCtrl_params *in)
 	printf("rx_buffer_base        : 0x%x\r\n",(unsigned int)in->rx_buffer_base);
 	printf("rx_buffer_high        : 0x%x\r\n",(unsigned int)in->rx_buffer_high);
 	printf("bd_buf_size           : 0x%x\r\n",(unsigned int)in->bd_buf_size);
+	printf("dmaDevId              : 0x%x\r\n",(unsigned int)in->dmaDevId);
+	printf("txEn                  : %u\r\n",in->txEn);
+	printf("txIrqPriority         : 0x%x\r\n",(unsigned int)in->txIrqPriority);
+	printf("txIrqId               : 0x%x\r\n",(unsigned int)in->txIrqId);
+	printf("rxEn                  : %u\r\n",in->rxEn);
 	printf("coalesce_count        : %u\r\n",in->coalesce_count);
-	printf("axisDma_txIrqPriority : 0x%x\r\n",(unsigned int)in->axisDma_txIrqPriority);
-	printf("axisDma_rxIrqPriority : 0x%x\r\n",(unsigned int)in->axisDma_rxIrqPriority);
-	printf("axisDma_txIrqId       : 0x%x\r\n",(unsigned int)in->axisDma_txIrqId);
-	printf("axisDma_rxIrqId       : 0x%x\r\n",(unsigned int)in->axisDma_rxIrqId);
-	printf("axisDma_dmaDevId      : 0x%x\r\n",(unsigned int)in->axisDma_dmaDevId);
+	printf("rxIrqId               : 0x%x\r\n",(unsigned int)in->rxIrqId);
+	printf("rxIrqPriority         : 0x%x\r\n",(unsigned int)in->rxIrqPriority);
 }
 
 void axisDmaCtrl_disable(XScuGic * intcInstancePtr)
 {
-	axisDmaCtrl_disableIntrSystem(intcInstancePtr, params.axisDma_txIrqId, params.axisDma_rxIrqId);
+	axisDmaCtrl_disableIntrSystem(intcInstancePtr);
 	_tx_cb = NULL;
 	_rx_cb = NULL;
 	axisDmaCtrl_emptyParamsStruct(&params);
@@ -148,7 +155,9 @@ int axisDmaCtrl_register_tx_cb(tx_cb_t cb)
 {
 	if(cb == NULL)
 		return XST_FAILURE;
+	XAxiDma_Pause(&axiDma);
 	_tx_cb = cb;
+	XAxiDma_Resume(&axiDma);
 	return XST_SUCCESS;
 }
 
@@ -156,7 +165,9 @@ int axisDmaCtrl_register_rx_cb(rx_cb_t cb)
 {
 	if(cb == NULL)
 		return XST_FAILURE;
+	XAxiDma_Pause(&axiDma);
 	_rx_cb = cb;
+	XAxiDma_Resume(&axiDma);
 	return XST_SUCCESS;
 }
 
@@ -247,30 +258,31 @@ int axisDmaCtrl_sendPackets(uint8_t * packetBuf, size_t packetSize)
 	return XST_SUCCESS;
 }
 
-static int axisDmaCtrl_markMemNoncache(struct axisDmaCtrl_params *mem)
+static int axisDmaCtrl_markMemNoncache(void)
 {
 	size_t i = 0;
 	int invalid_struct = 0;
-	invalid_struct |= mem->rx_bd_space_base    == 0
-		       || mem->rx_bd_space_high    == 0
-		       || mem->tx_bd_space_base    == 0
-		       || mem->tx_bd_space_high    == 0
-		       || mem->tx_buffer_base      == 0
-		       || mem->tx_buffer_high      == 0
-		       || mem->rx_buffer_base      == 0
-		       || mem->rx_buffer_high      == 0
-		       || mem->bd_buf_size         == 0
-		       || (int)mem->coalesce_count == 0;
+	invalid_struct |= (!params.txEn && !params.rxEn)
+			| (params.rxEn && params.coalesce_count == 0)
+			| (params.rxEn && ((params.rx_bd_space_high - params.rx_bd_space_base) == 0))
+			| (params.rxEn && ((params.rx_buffer_high - params.rx_buffer_base) == 0))
+			| (params.txEn && ((params.tx_bd_space_high - params.tx_bd_space_base) == 0))
+			| (params.txEn && ((params.tx_buffer_high - params.tx_buffer_base) == 0)
+			);
 	if(invalid_struct)
 		return XST_FAILURE;
-	for(i = mem->rx_bd_space_base; i <= mem->rx_bd_space_high; i += ONE_MB)
-		Xil_SetTlbAttributes(i, NORM_NONCACHE);
-	for(i = mem->tx_bd_space_base; i <= mem->tx_bd_space_high; i += ONE_MB)
-		Xil_SetTlbAttributes(i, NORM_NONCACHE);
-	for(i = mem->tx_buffer_base; i <= mem->tx_buffer_high; i += ONE_MB)
-		Xil_SetTlbAttributes(i, NORM_NONCACHE);
-	for(i = mem->rx_buffer_base; i <= mem->rx_buffer_high; i += ONE_MB)
-		Xil_SetTlbAttributes(i, NORM_NONCACHE);
+	if(params.rxEn){
+		for(i = params.rx_bd_space_base; i <= params.rx_bd_space_high; i += ONE_MB)
+			Xil_SetTlbAttributes(i, NORM_NONCACHE);
+		for(i = params.rx_buffer_base; i <= params.rx_buffer_high; i += ONE_MB)
+			Xil_SetTlbAttributes(i, NORM_NONCACHE);
+	}
+	if(params.txEn){
+		for(i = params.tx_bd_space_base; i <= params.tx_bd_space_high; i += ONE_MB)
+			Xil_SetTlbAttributes(i, NORM_NONCACHE);
+		for(i = params.tx_buffer_base; i <= params.tx_buffer_high; i += ONE_MB)
+			Xil_SetTlbAttributes(i, NORM_NONCACHE);
+	}
 	return XST_SUCCESS;
 }
 
@@ -286,12 +298,14 @@ static struct axisDmaCtrl_params axisDmaCtrl_copyParamsStruct(struct axisDmaCtrl
 	tmp.rx_buffer_base = in->rx_buffer_base;
 	tmp.rx_buffer_high = in->rx_buffer_high;
 	tmp.bd_buf_size = in->bd_buf_size;
+	tmp.txEn = in->txEn;
+	tmp.txIrqId = in->txIrqId;
+	tmp.txIrqPriority = in->txIrqPriority;
 	tmp.coalesce_count = in->coalesce_count;
-	tmp.axisDma_txIrqPriority = in->axisDma_txIrqPriority;
-	tmp.axisDma_rxIrqPriority = in->axisDma_rxIrqPriority;
-	tmp.axisDma_rxIrqId = in->axisDma_rxIrqId;
-	tmp.axisDma_txIrqId = in->axisDma_txIrqId;
-	tmp.axisDma_dmaDevId = in->axisDma_dmaDevId;
+	tmp.rxEn = in->rxEn;
+	tmp.rxIrqPriority = in->rxIrqPriority;
+	tmp.rxIrqId = in->rxIrqId;
+	tmp.dmaDevId = in->dmaDevId;
 	return tmp;
 }
 
@@ -307,8 +321,10 @@ static void axisDmaCtrl_emptyParamsStruct(struct axisDmaCtrl_params * in)
 	in->rx_buffer_high   = 0;
 	in->bd_buf_size      = 0;	
 	in->coalesce_count   = 1;	
-	in->axisDma_rxIrqPriority = 0xff;
-	in->axisDma_txIrqPriority = 0xff;
+	in->rxIrqPriority = 0xff;
+	in->txIrqPriority = 0xff;
+	in->txEn          = 0;
+	in->rxEn          = 0;
 }
 
 static void axisDmaCtrl_txIrqBdHandler(XAxiDma_BdRing * txRingPtr)
@@ -536,21 +552,17 @@ static void axisDmaCtrl_rxIntrHandler(void *callback)
 	}
 }
 
-static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr,
-			   XAxiDma * axiDmaPtr, u16 txIntrId, u16 rxIntrId)
+static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr)
 {
-	XAxiDma_BdRing *txRingPtr = XAxiDma_GetTxRing(&axiDma);
-	XAxiDma_BdRing *rxRingPtr = XAxiDma_GetRxRing(&axiDma);
 	int rc;
 
 	XScuGic_Config *intcConfig;
-
 
 	/*
   	 * Initialize the interrupt controller driver so that it is ready to
   	 * use.
   	 */
-	intcConfig = XScuGic_LookupConfig(params.axisDma_dmaDevId);
+	intcConfig = XScuGic_LookupConfig(params.dmaDevId);
 	if (NULL == intcConfig) {
 		return XST_FAILURE;
 	}
@@ -562,30 +574,30 @@ static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr,
 	}
 
 
-	XScuGic_SetPriorityTriggerType(intcInstancePtr, txIntrId, params.axisDma_txIrqPriority, 0x3);
-
-	XScuGic_SetPriorityTriggerType(intcInstancePtr, rxIntrId, params.axisDma_rxIrqPriority, 0x3);
-	/*
-  	 * Connect the device driver handler that will be called when an
-  	 * interrupt for the device occurs, the handler defined above performs
-  	 * the specific interrupt processing for the device.
-  	 */
-	rc = XScuGic_Connect(intcInstancePtr, txIntrId,
-				(Xil_InterruptHandler)axisDmaCtrl_txIntrHandler,
-				txRingPtr);
-	if (rc != XST_SUCCESS) {
-		return rc;
+	if (params.txEn) {
+		XAxiDma_BdRing *txRingPtr = XAxiDma_GetTxRing(&axiDma);
+		XScuGic_SetPriorityTriggerType(intcInstancePtr, params.txIrqId, params.txIrqPriority, 0x3);
+		rc = XScuGic_Connect(intcInstancePtr, params.txIrqId,
+					(Xil_InterruptHandler)axisDmaCtrl_txIntrHandler,
+					txRingPtr);
+		if (rc != XST_SUCCESS) {
+			return rc;
+		}
+		XScuGic_Enable(intcInstancePtr, params.txIrqId);
 	}
 
-	rc = XScuGic_Connect(intcInstancePtr, rxIntrId,
-				(Xil_InterruptHandler)axisDmaCtrl_rxIntrHandler,
-				rxRingPtr);
-	if (rc != XST_SUCCESS) {
-		return rc;
+	if (params.rxEn) {
+		XAxiDma_BdRing *rxRingPtr = XAxiDma_GetRxRing(&axiDma);
+		XScuGic_SetPriorityTriggerType(intcInstancePtr, params.rxIrqId, params.rxIrqPriority, 0x3);
+		rc = XScuGic_Connect(intcInstancePtr, params.rxIrqId,
+					(Xil_InterruptHandler)axisDmaCtrl_rxIntrHandler,
+					rxRingPtr);
+		if (rc != XST_SUCCESS) {
+			return rc;
+		}
+		XScuGic_Enable(intcInstancePtr, params.rxIrqId);
 	}
 
-	XScuGic_Enable(intcInstancePtr, txIntrId);
-	XScuGic_Enable(intcInstancePtr, rxIntrId);
 
 	/* Enable interrupts from the hardware */
 	Xil_ExceptionInit();
@@ -598,11 +610,13 @@ static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr,
 	return XST_SUCCESS;
 }
 
-static void axisDmaCtrl_disableIntrSystem(XScuGic * intcInstancePtr,
-					u16 txIntrId, u16 rxIntrId)
+static void axisDmaCtrl_disableIntrSystem(XScuGic * intcInstancePtr)
 {
-	XScuGic_Disconnect(intcInstancePtr, txIntrId);
-	XScuGic_Disconnect(intcInstancePtr, rxIntrId);
+	if(params.txEn)
+		XScuGic_Disconnect(intcInstancePtr, params.txIrqId);
+	
+	if(params.rxEn)
+		XScuGic_Disconnect(intcInstancePtr, params.rxIrqId);
 }
 
 static int axisDmaCtrl_rxSetup(XAxiDma * axiDmaInstPtr)

@@ -37,6 +37,9 @@ int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 	struct axisDmaCtrl_params params;
 	int i;
 
+	printf("%s : Starting w/ %d packets of %d bytes using buffers of %d bytes\r\n",
+		__func__,numTestPkts, pktSize, bufSize);
+
 	BD_BUF_SIZE  = bufSize;
 	MAX_PKT_SIZE = pktSize;
 
@@ -50,11 +53,13 @@ int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 	params.rx_buffer_high   = params.rx_buffer_base + MEM_REGION_BUF_SIZE;
 	params.bd_buf_size      = BD_BUF_SIZE;
 	params.coalesce_count   = 1;
-	params.axisDma_txIrqPriority = 0xA0;
-	params.axisDma_rxIrqPriority = 0xA0;
-	params.axisDma_txIrqId = TX_INTR_ID;
-	params.axisDma_rxIrqId = RX_INTR_ID;
-	params.axisDma_dmaDevId = DMA_DEV_ID;
+	params.txIrqPriority    = 0xA0;
+	params.rxIrqPriority    = 0xA0;
+	params.txIrqId          = TX_INTR_ID;
+	params.rxIrqId          = RX_INTR_ID;
+	params.dmaDevId         = DMA_DEV_ID;
+	params.txEn             = 1;
+	params.rxEn             = 1;
 
 	axisDmaCtrl_printParams(&params);
 
@@ -80,6 +85,7 @@ int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 			return XST_FAILURE;
 		// sleep(1);
 	}
+	printf("Done!\r\n");
 	printf("tx_bds : %d, rx_bds %d, rx_packets %d\r\n",tx_bd_count,rx_bd_count,rx_pkt_count);
 	if(error){
 		printf("!! Test Failed w/ error !!\r\n");

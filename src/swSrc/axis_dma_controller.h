@@ -42,12 +42,15 @@ struct axisDmaCtrl_params{
 	size_t rx_buffer_base;   /**< base address for rx data buffer */
 	size_t rx_buffer_high;   /**< high address for rx data buffer */
 	size_t bd_buf_size;      /**< number of bytes in a bd buffer */
+	uint8_t dmaDevId; /**< ID for the dma Device from xparameters */
+	/* xscugic parameters */
+	uint8_t txEn; /**< 1 to enable DMA TX */
+	uint8_t txIrqPriority; /**< priority level for the tx dma irq */
+	uint8_t txIrqId; /**< Interrupt ID for the tx dma from xparameters */
+	uint8_t rxEn; /**< 1 to enable DMA TX */
 	uint8_t coalesce_count;	 /**< number of bds that must be ready for an irq to fire */
-	uint8_t axisDma_txIrqPriority; /**< priority level for the tx dma irq */
-	uint8_t axisDma_rxIrqPriority; /**< priority level for the rx dma irq */
-	uint8_t axisDma_txIrqId; /**< Interrupt ID for the tx dma from xparameters */
-	uint8_t axisDma_rxIrqId; /**< Interrupt ID for the rx dma from xparameters */
-	uint8_t axisDma_dmaDevId; /**< ID for the dma Device from xparameters */
+	uint8_t rxIrqPriority; /**< priority level for the rx dma irq */
+	uint8_t rxIrqId; /**< Interrupt ID for the rx dma from xparameters */
 };
 
 /**
