@@ -119,16 +119,21 @@ int axisDmaCtrl_init(struct axisDmaCtrl_params *paramsIn,
 
 void axisDmaCtrl_printParams(struct axisDmaCtrl_params *in)
 {
-	printf("rx_bd_space_base : 0x%x\r\n",(unsigned int)in->rx_bd_space_base);
-	printf("rx_bd_space_high : 0x%x\r\n",(unsigned int)in->rx_bd_space_high);
-	printf("tx_bd_space_base : 0x%x\r\n",(unsigned int)in->tx_bd_space_base);
-	printf("tx_bd_space_high : 0x%x\r\n",(unsigned int)in->tx_bd_space_high);
-	printf("tx_buffer_base   : 0x%x\r\n",(unsigned int)in->tx_buffer_base);
-	printf("tx_buffer_high   : 0x%x\r\n",(unsigned int)in->tx_buffer_high);
-	printf("rx_buffer_base   : 0x%x\r\n",(unsigned int)in->rx_buffer_base);
-	printf("rx_buffer_high   : 0x%x\r\n",(unsigned int)in->rx_buffer_high);
-	printf("bd_buf_size      : 0x%x\r\n",(unsigned int)in->bd_buf_size);
-	printf("coalesce_count   : %u\r\n",in->coalesce_count);
+	printf("rx_bd_space_base      : 0x%x\r\n",(unsigned int)in->rx_bd_space_base);
+	printf("rx_bd_space_high      : 0x%x\r\n",(unsigned int)in->rx_bd_space_high);
+	printf("tx_bd_space_base      : 0x%x\r\n",(unsigned int)in->tx_bd_space_base);
+	printf("tx_bd_space_high      : 0x%x\r\n",(unsigned int)in->tx_bd_space_high);
+	printf("tx_buffer_base        : 0x%x\r\n",(unsigned int)in->tx_buffer_base);
+	printf("tx_buffer_high        : 0x%x\r\n",(unsigned int)in->tx_buffer_high);
+	printf("rx_buffer_base        : 0x%x\r\n",(unsigned int)in->rx_buffer_base);
+	printf("rx_buffer_high        : 0x%x\r\n",(unsigned int)in->rx_buffer_high);
+	printf("bd_buf_size           : 0x%x\r\n",(unsigned int)in->bd_buf_size);
+	printf("coalesce_count        : %u\r\n",in->coalesce_count);
+	printf("axisDma_txIrqPriority : 0x%x\r\n",(unsigned int)in->axisDma_txIrqPriority);
+	printf("axisDma_rxIrqPriority : 0x%x\r\n",(unsigned int)in->axisDma_rxIrqPriority);
+	printf("axisDma_txIrqId       : 0x%x\r\n",(unsigned int)in->axisDma_txIrqId);
+	printf("axisDma_rxIrqId       : 0x%x\r\n",(unsigned int)in->axisDma_rxIrqId);
+	printf("axisDma_dmaDevId      : 0x%x\r\n",(unsigned int)in->axisDma_dmaDevId);
 }
 
 void axisDmaCtrl_disable(XScuGic * intcInstancePtr)
@@ -161,10 +166,12 @@ int axisDmaCtrl_sendPackets(uint8_t * packetBuf, size_t packetSize)
 	XAxiDma_Bd *bdPtr, *bdCurPtr;
 	int rc;
 	u32 BufferAddr;
-	int reqBds = 0;
-	int i = 0;
+	int reqBds;
+	int i;
+	size_t remaining_bytes;
 
 	/* find number of bds required */
+	remaining_bytes = packetSize;
 	reqBds = packetSize / params.bd_buf_size;
 	reqBds += (packetSize % params.bd_buf_size) ? 1 : 0;
 	
@@ -182,10 +189,23 @@ int axisDmaCtrl_sendPackets(uint8_t * packetBuf, size_t packetSize)
 	BufferAddr = (UINTPTR)packetBuf;
 	bdCurPtr = bdPtr;
 
+	AXISDMA_DEBUG_PRINT("pkt_len : %d, # bds req %d\r\n",packetSize, reqBds);
+
 	for(i = 0; i < reqBds; i++){
 		u32 CrBits = 0;
+		size_t bytes2send = 0;
 
-		rc = XAxiDma_BdSetBufAddr(bdPtr, BufferAddr);
+		/* if this is the only bd send the full received packetSize */
+		if(i == reqBds - 1){
+			bytes2send = remaining_bytes;
+		}
+		/* else send the maximum buffer_size and calculate number of remaining bytes */
+		else{
+			bytes2send = params.bd_buf_size;
+			remaining_bytes -= params.bd_buf_size;
+		}
+
+		rc = XAxiDma_BdSetBufAddr(bdCurPtr, BufferAddr);
 		if (rc != XST_SUCCESS) {
 			AXISDMA_ERROR_PRINT("Tx set buffer addr %x on BD %x failed %d\r\n",
 			(unsigned int)BufferAddr,
@@ -193,11 +213,11 @@ int axisDmaCtrl_sendPackets(uint8_t * packetBuf, size_t packetSize)
 			return XST_FAILURE;
 		}
 
-		rc = XAxiDma_BdSetLength(bdPtr, params.bd_buf_size,
+		rc = XAxiDma_BdSetLength(bdCurPtr, (uint32_t)bytes2send,
 					txRingPtr->MaxTransferLen);
 		if (rc != XST_SUCCESS) {
 			AXISDMA_ERROR_PRINT("Tx set length %d on BD %x failed %d\r\n",
-			params.bd_buf_size, (UINTPTR)bdPtr, rc);
+			params.bd_buf_size, (UINTPTR)bdCurPtr, rc);
 			return XST_FAILURE;
 		}
 
@@ -206,11 +226,13 @@ int axisDmaCtrl_sendPackets(uint8_t * packetBuf, size_t packetSize)
 		if(i == reqBds - 1)
 			CrBits |= XAXIDMA_BD_CTRL_TXEOF_MASK;
 
-		XAxiDma_BdSetCtrl(bdPtr, CrBits);
-		XAxiDma_BdSetId(bdPtr, BufferAddr);
+		XAxiDma_BdSetCtrl(bdCurPtr, CrBits);
+		XAxiDma_BdSetId(bdCurPtr, BufferAddr);
 
-		BufferAddr += params.bd_buf_size;
-		bdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(txRingPtr, bdCurPtr);
+		if(i != reqBds-1){
+			BufferAddr += params.bd_buf_size;
+			bdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(txRingPtr, bdCurPtr);
+		}
 	}
 
 	/* Give the BD to hardware */
@@ -317,6 +339,8 @@ static void axisDmaCtrl_txIrqBdHandler(XAxiDma_BdRing * txRingPtr)
 			break;
 		}
 
+		_tx_cb();
+		
 		/*
   		 * Here we don't need to do anything. But if a RTOS is being
   		 * used, we may need to free the packet buffer attached to
@@ -324,7 +348,8 @@ static void axisDmaCtrl_txIrqBdHandler(XAxiDma_BdRing * txRingPtr)
   		 */
 
 		/* Find the next processed BD */
-		bdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(txRingPtr, bdCurPtr);
+		if(i != bdCount-1)
+			bdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(txRingPtr, bdCurPtr);
 	}
 
 	/* Free all processed BDs for future transmission */
@@ -332,8 +357,6 @@ static void axisDmaCtrl_txIrqBdHandler(XAxiDma_BdRing * txRingPtr)
 	if (rc != XST_SUCCESS) {
 		AXISDMA_ERROR_PRINT("XAxiDma_BdRingFree\r\n");
 	}
-
-	_tx_cb();
 }
 
 static void axisDmaCtrl_txIntrHandler(void *callback)
@@ -404,10 +427,12 @@ static void axisDmaCtrl_rxIrqBdHandler(XAxiDma_BdRing * rxRingPtr)
 		return;
 	}
 
+	AXISDMA_DEBUG_PRINT("rx %d bds\r\n",bdCount);
 
 	bdCurPtr = bdPtr;
 	for (i = 0; i < bdCount; i++) {
-		
+		uint32_t addr;
+		uint32_t pktLen;
 		/*
  		* Check the flags set by the hardware for status
 		* If error happens, processing stops, because the DMA engine
@@ -421,9 +446,10 @@ static void axisDmaCtrl_rxIrqBdHandler(XAxiDma_BdRing * rxRingPtr)
 		}
 
 		/* get memory offset of current bd */
-		uint32_t addr   = XAxiDma_BdGetBufAddr(bdCurPtr);
-		uint32_t pktLen = XAxiDma_BdGetActualLength(bdCurPtr,params.bd_buf_size);
-		// XAxiDma_DumpBd(bdCurPtr);
+		addr   = XAxiDma_BdGetBufAddr(bdCurPtr);
+		pktLen = XAxiDma_BdGetActualLength(bdCurPtr,rxRingPtr->MaxTransferLen);
+
+		AXISDMA_DEBUG_PRINT("pkt %d, pktLen %lu\r\n",i,pktLen);
 
 		_rx_cb(addr, pktLen);
 		
@@ -524,7 +550,7 @@ static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr,
   	 * Initialize the interrupt controller driver so that it is ready to
   	 * use.
   	 */
-	intcConfig = XScuGic_LookupConfig(params.axisDma_XscuGic_DevId);
+	intcConfig = XScuGic_LookupConfig(params.axisDma_dmaDevId);
 	if (NULL == intcConfig) {
 		return XST_FAILURE;
 	}

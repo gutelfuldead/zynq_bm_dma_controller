@@ -10,18 +10,20 @@
 #define MEM_BASE_ADDR		(XPAR_PS7_DDR_0_S_AXI_BASEADDR + 0x1000000) /* 0x00100000 - 0x001fffff */
 #define MEM_REGION_BD_SIZE      (0x0000FFF)
 #define MEM_REGION_BUF_SIZE     (0x0001FFF)
-#define BUFFER_SIZE             1102
-#define MAX_PKT_SIZE            BUFFER_SIZE
+#define BD_BUF_SIZE             60
+#define MAX_PKT_SIZE            666
 
-#define XScuGic_HANDLER	   XScuGic_InterruptHandler
 #define DMA_DEV_ID	   XPAR_AXIDMA_0_DEVICE_ID
 #define XScuGic_DEVICE_ID  XPAR_SCUGIC_SINGLE_DEVICE_ID
 #define RX_INTR_ID	   XPAR_FABRIC_AXIDMA_0_S2MM_INTROUT_VEC_ID
 #define TX_INTR_ID	   XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_VEC_ID
 
-static int tx_count;
-static int rx_count;
+static int tx_bd_count;
+static int rx_bd_count;
+static int rx_pkt_count;
 static int error;
+static int pkt_complete = 1;
+static int pkt_bytes_rx = 0;
 
 static XScuGic intc;
 static uint8_t txPkt[MAX_PKT_SIZE];
@@ -43,21 +45,21 @@ int axis_dma_controller_sample_exec(int numTestPkts)
 	params.tx_buffer_high   = params.tx_buffer_base + MEM_REGION_BUF_SIZE;
 	params.rx_buffer_base   = params.tx_buffer_high + 1; 
 	params.rx_buffer_high   = params.rx_buffer_base + MEM_REGION_BUF_SIZE;
-	params.bd_buf_size      = BUFFER_SIZE;
+	params.bd_buf_size      = BD_BUF_SIZE;
 	params.coalesce_count   = 1;
 	params.axisDma_txIrqPriority = 0xA0;
 	params.axisDma_rxIrqPriority = 0xA0;
 	params.axisDma_txIrqId = TX_INTR_ID;
 	params.axisDma_rxIrqId = RX_INTR_ID;
 	params.axisDma_dmaDevId = DMA_DEV_ID;
-	params.axisDma_XscuGic_DevId = XScuGic_HANDLER;
-	
 
 	axisDmaCtrl_printParams(&params);
 
-	tx_count = 0;
-	rx_count = 0;
+	tx_bd_count = 0;
+	rx_bd_count = 0;
 	error    = 0;
+	pkt_complete = 1;
+	pkt_bytes_rx = 0;
 
 	for(i=0; i<MAX_PKT_SIZE; i++)
 		txPkt[i] = i % 255;
@@ -68,13 +70,13 @@ int axis_dma_controller_sample_exec(int numTestPkts)
 		return XST_FAILURE;
 	}
 
-	while(rx_count < numTestPkts && !error){
+	while(rx_pkt_count < numTestPkts && !error){
 		rc = axisDmaCtrl_sendPackets(&txPkt[0], MAX_PKT_SIZE);
 		if(rc != XST_SUCCESS && rc != E_AXISDMA_NOBDS)
 			return XST_FAILURE;
+		// sleep(1);
 	}
-	sleep(1);
-	printf("tx : %d, rx %d\r\n",tx_count,rx_count);
+	printf("tx_bds : %d, rx_bds %d, rx_packets %d\r\n",tx_bd_count,rx_bd_count,rx_pkt_count);
 	if(error){
 		printf("!! Test Failed w/ error !!\r\n");
 		return XST_FAILURE;
@@ -88,24 +90,50 @@ int axis_dma_controller_sample_exec(int numTestPkts)
 
 static void tx_callback(void)
 {
-	// printf("%s\r\n",__func__);
-	tx_count++;
+	tx_bd_count++;
 }
 
 static void rx_callback(uint32_t buf_addr, uint32_t buf_len)
 {
-	// printf("bufaddr 0x%x len %d\r\n",buf_addr,buf_len);
-	/* check data */
-	uint8_t *rxPacket = (u8 *)buf_addr;
 	int j = 0;
-	for(j = 0; j < buf_len; j++){
-		if(*(rxPacket+j) != txPkt[j]){
-			printf("%s ERROR : pkt %d : tx[%04d] %03d, rx[%04d] %03d @ 0x%x\r\n",
-				__func__,rx_count,j,txPkt[j],j,*(rxPacket+j),(unsigned int)(rxPacket+j));
-			error = 1;
-			break;
+	uint8_t *rxPacket;
+
+	// printf("pkt_complete : %s, pkt_bytes_rx : %d, buf_len : %d\r\n",pkt_complete?"T":"F", (int)pkt_bytes_rx, (int)buf_len);
+
+	rxPacket = (u8 *)buf_addr;
+
+	if (pkt_complete){
+		/* check data */
+		for(j = 0; j < buf_len; j++){
+			if(*(rxPacket+j) != txPkt[j]){
+				printf("%s ERROR : pkt %d : tx[%04d]=%03d, rx[%04d]=%03d @ 0x%x\r\n",
+					__func__,rx_bd_count,j,txPkt[j],j,*(rxPacket+j),(unsigned int)(rxPacket+j));
+				error = 1;
+				break;
+			}
+		}
+	} else {
+		int txOffset = pkt_bytes_rx;
+		/* check data */
+		for(j = 0; j < buf_len; j++){
+			if(*(rxPacket+j) != txPkt[j+txOffset]){
+				 printf("%s ERROR : pkt %d : tx[%04d]=%03d, rx[%04d]=%03d @ 0x%x\r\n",
+					 __func__,rx_bd_count,j+txOffset,txPkt[j+txOffset],j,*(rxPacket+j),(unsigned int)(rxPacket+j));
+				error = 1;
+				break;
+			}
 		}
 	}
-	memset((void *)buf_addr, 0, MAX_PKT_SIZE);
-	rx_count++;
+
+	pkt_bytes_rx += buf_len;
+	if(error || pkt_bytes_rx >= MAX_PKT_SIZE){
+		pkt_complete = 1;
+		pkt_bytes_rx = 0;
+		rx_pkt_count++;
+	} else {
+		pkt_complete = 0;
+	}
+
+	memset((void *)buf_addr, 0, buf_len);
+	rx_bd_count++;
 }

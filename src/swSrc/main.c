@@ -9,7 +9,7 @@ int main()
 
     xil_printf("\n\n\rStarting DMA Testing...\n\r");
 
-    axis_dma_controller_sample_exec(4000);
+    axis_dma_controller_sample_exec(1000);
 
     cleanup_platform();
     return 0;

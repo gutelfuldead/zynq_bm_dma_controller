@@ -48,7 +48,6 @@ struct axisDmaCtrl_params{
 	uint8_t axisDma_txIrqId; /**< Interrupt ID for the tx dma from xparameters */
 	uint8_t axisDma_rxIrqId; /**< Interrupt ID for the rx dma from xparameters */
 	uint8_t axisDma_dmaDevId; /**< ID for the dma Device from xparameters */
-	uint8_t axisDma_XscuGic_DevId; /**< ID for the XscuGic from xparameters */
 };
 
 /**
