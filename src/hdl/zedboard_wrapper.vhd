@@ -3,15 +3,15 @@
 --Tool Version: Vivado v.2017.4 (lin64) Build 2086221 Fri Dec 15 20:54:30 MST 2017
 --Date        : Tue Oct  2 13:49:40 2018
 --Host        : stephano.spacemicro.com running 64-bit CentOS Linux release 7.5.1804 (Core)
---Command     : generate_target zedboardVanillaVanilla_wrapper.bd
---Design      : zedboardVanillaVanilla_wrapper
+--Command     : generate_target zedboard_wrapper.bd
+--Design      : zedboard_wrapper
 --Purpose     : IP block netlist
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 library UNISIM;
 use UNISIM.VCOMPONENTS.ALL;
-entity zedboardVanillaVanilla_wrapper is
+entity zedboard_wrapper is
   port (
     DDR_addr : inout STD_LOGIC_VECTOR ( 14 downto 0 );
     DDR_ba : inout STD_LOGIC_VECTOR ( 2 downto 0 );
@@ -35,10 +35,10 @@ entity zedboardVanillaVanilla_wrapper is
     FIXED_IO_ps_porb : inout STD_LOGIC;
     FIXED_IO_ps_srstb : inout STD_LOGIC
   );
-end zedboardVanillaVanilla_wrapper;
+end zedboard_wrapper;
 
-architecture STRUCTURE of zedboardVanillaVanilla_wrapper is
-  component zedboardVanilla is
+architecture STRUCTURE of zedboard_wrapper is
+  component zedboard is
   port (
     DDR_cas_n : inout STD_LOGIC;
     DDR_cke : inout STD_LOGIC;
@@ -62,9 +62,9 @@ architecture STRUCTURE of zedboardVanillaVanilla_wrapper is
     FIXED_IO_ps_clk : inout STD_LOGIC;
     FIXED_IO_ps_porb : inout STD_LOGIC
   );
-  end component zedboardVanilla;
+  end component zedboard;
 begin
-zedboardVanilla_i: component zedboardVanilla
+zedboard_i: component zedboard
      port map (
       DDR_addr(14 downto 0) => DDR_addr(14 downto 0),
       DDR_ba(2 downto 0) => DDR_ba(2 downto 0),

@@ -1,9 +1,9 @@
 PTOP                     = $(shell pwd)
 VALID_TARGETS            = zedboard \
-                           zybo 
+                           zybo
 CLEAN_TARGETS            = $(VALID_TARGETS) \
 				.Xil \
-				Packages
+				Packages \
 				*.layout \
 				*.debug \
 				*.mif \
@@ -17,8 +17,8 @@ CLEAN_BDS                = $(VALID_TARGETS)
 TCL_PATH                 = $(PTOP)/src/tcl
 OUTPUT_PATH              = $(PTOP)/src/outputFiles
 VIVADO_CMD               = vivado -mode batch -source
-VIVADO_REQI_VERSION      = 2017.4
-VIVADO_REQI_VERSION_STR  = v2017.4
+VIVADO_REQI_VERSION      = 2018.2
+VIVADO_REQI_VERSION_STR  = v2018.2
 VIVADO_HOST_VERSION_STR  = $(shell vivado -version | awk '{print $$2}' | head -n 1)
 VIVADO_DEF_BASE_PATH     = /opt/Xilinx/Vivado/$(VIVADO_REQI_VERSION)
 VIVADO_BASE_PATH         ?= $(VIVADO_DEF_BASE_PATH)
@@ -51,7 +51,7 @@ build: checkValidProjName checkVersion
 	@echo -e "\tvivado ./$(TARGET)/$(TARGET).xpr"
 	@echo -e "\n\n!!! GENERATING BITSTREAM !!!\n\n"
 	$(MAKE) bitstream
-	
+
 bitstream: checkValidProjName checkVersion
 ifeq ($(wildcard $(TARGET)),)
 	$(MAKE) build
@@ -60,7 +60,7 @@ endif
 	cp $(TARGET)/$(TARGET).runs/impl_1/*.sysdef $(OUTPUT_PATH)/$(TARGET).hdf
 	cp $(TARGET)/$(TARGET).runs/impl_1/*.bit $(OUTPUT_PATH)/$(TARGET).bit
 
-clean-all: $(CLEAN_BDS) 
+clean-all: $(CLEAN_BDS)
 	rm -rf $(CLEAN_TARGETS)
 
 $(CLEAN_BDS):

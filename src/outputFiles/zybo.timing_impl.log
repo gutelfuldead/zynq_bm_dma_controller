@@ -1,13 +1,13 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
--------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.2 (lin64) Build 2258646 Thu Jun 14 20:02:38 MDT 2018
-| Date         : Fri Oct 19 16:59:38 2018
-| Host         : afx-Latitude-E6430s running 64-bit Ubuntu 16.04.5 LTS
-| Command      : report_timing_summary -file /home_extended/gits/zedboard_dma/src/outputFiles/zybo.timing_impl.log
+| Date         : Thu Nov 15 19:32:32 2018
+| Host         : arch running 64-bit unknown
+| Command      : report_timing_summary -file /home/afx/gits/zynq_bm_dma_controller/src/outputFiles/zybo.timing_impl.log
 | Design       : zybo_wrapper
 | Device       : 7z010-clg400
 | Speed File   : -1  PRODUCTION 1.11 2014-09-11
--------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
 
 Timing Summary Report
 
