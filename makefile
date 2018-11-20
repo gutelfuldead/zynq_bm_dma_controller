@@ -75,7 +75,7 @@ $(CLEAN_BDS):
 	rm -rf ./src/bds/$@/*.xdc
 
 help:
-	@echo -e "\tRequires Vivado $(VIVADO_REQI_VERSION_STR)\n"
+	@echo -e "Requires Vivado $(VIVADO_REQI_VERSION_STR)... $(VIVADO_HOST_VERSION_STR) found in PATH...\n"
 	@echo -e "make build TARGET=projName"
 	@echo -e "\tBuilds vivado project, valid targets : $(VALID_TARGETS)\n"
 	@echo -e "make clean-all"
