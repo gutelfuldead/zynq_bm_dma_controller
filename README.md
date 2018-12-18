@@ -21,6 +21,7 @@ run `make` to see commands. Requires Vivado 2018.2 to use auto-build.
 Contains API files,
 
 ```
+sw/src
 .
 ├── axis_dma_controller.c
 └── axis_dma_controller.h
@@ -29,3 +30,14 @@ Contains API files,
 ### test_code
 
 Contains bare-metal test code to exercise interface and show sample toy application
+```
+sw/test_code
+.
+├── axis_dma_controller_sample_exec.c
+├── axis_dma_controller_sample_exec.h
+├── lscript.ld
+├── main.c
+├── platform.c
+├── platform_config.h
+└── platform.h
+```
