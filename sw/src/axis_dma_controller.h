@@ -1,7 +1,7 @@
 /**
  * @brief  Provides API for abstracting control for handling bare-metal
  *         AXI-Stream DMA Engine configured in Scatter Gather (SG) Mode
- *         with Dynamic ReAlignment Engine (DRE) enabled  
+ *         with Dynamic ReAlignment Engine (DRE) enabled
  * @author Jason Gutel (github.com/gutelfuldead)
  */
 
@@ -28,7 +28,7 @@ typedef void (*dma_rx_cb_t)(uint32_t buf_addr, uint32_t buf_len);
 typedef void (*dma_tx_cb_t)(void);
 
 /**
- * @brief      Structure used to pass all configuration parameters 
+ * @brief      Structure used to pass all configuration parameters
  *             to the api
  */
 struct axisDmaCtrl_params{
@@ -55,41 +55,36 @@ struct axisDmaCtrl_params{
 
 /**
  * @brief      Changes the TX Callback on the fly
- *
- * @param[in]  cb    function for tx callback
- *
+ * @param  cb  function for tx callback
  * @return     success on valid memory address (not null)
  */
 int axisDmaCtrl_register_tx_cb(dma_tx_cb_t cb);
 
 /**
  * @brief      Changes the RX Callback on the fly
- *
- * @param[in]  cb    function for rx callback
- *
+ * @param  cb  function for rx callback
  * @return     success on valid memory address (not null)
  */
 int axisDmaCtrl_register_rx_cb(dma_rx_cb_t cb);
 
 /**
  * @brief      Initializes DMA system. Registers TX and RX callback functions.
- *             Sets up memory area to be registered as noncacheable by the tlb. 
- *
+ *             Sets up memory area to be registered as noncacheable by the tlb.
  * @param      params           Initialized axisDmaCtrl_params struct
  * @param      IntcInstancePtr  Pointer to the XscuGic instance
- * @param[in]  rxCb             The receive callback function
- * @param[in]  txCb             The transmit callback function
+ * @param      rxCb             The receive callback function
+ * @param      txCb             The transmit callback function
  *
- * @return     { description_of_the_return_value }
+ * @return     XST_SUCCESS | XST_FAILURE
  */
-int axisDmaCtrl_init(struct axisDmaCtrl_params *params, 
+int axisDmaCtrl_init(struct axisDmaCtrl_params *params,
 	XScuGic * IntcInstancePtr,
 	dma_rx_cb_t rxCb,
 	dma_tx_cb_t txCb);
 
 /**
  * @brief      Removes DMA interrupts from the GIC. Clears specified memory
- *             provided in the init. Unregisters callback functions.	 
+ *             provided in the init. Unregisters callback functions.
  *
  * @param      IntcInstancePtr  Pointer to the XscuGic instance
  */
@@ -101,9 +96,9 @@ void axisDmaCtrl_disable(XScuGic * IntcInstancePtr);
  *             End of memory region will assert a TLAST flag.
  *
  * @param      packetBuf   The packet buffer
- * @param[in]  packetSize  The packet size
+ * @param      packetSize  The packet size
  *
- * @return     { description_of_the_return_value }
+ * @return     XST_SUCCESS | XST_FAILURE | E_AXISDMA_NOBDS if there are no available bds
  */
 int axisDmaCtrl_sendPackets(uint8_t * packetBuf, size_t packetSize);
 

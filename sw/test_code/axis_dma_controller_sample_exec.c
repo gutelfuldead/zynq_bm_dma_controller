@@ -1,5 +1,5 @@
 /**
- * @brief  
+ * @brief
  * @author Jason Gutel (github.com/gutelfuldead)
  */
 
@@ -33,6 +33,14 @@ static void gic_enable(void);
 static void tx_callback(void);
 static void rx_callback(uint32_t buf_addr, uint32_t buf_len);
 
+/**
+  * This application exec sends toy data through the DMA engine --> FIFO --> DMA Engine and
+  * checks that the data is received in order with no errors
+  *
+  * @param numTestPkts Number of packets to run through before claiming success/failure
+  * @param pktSize     Number of bytes in a single packet
+  * @param bufSize     Size of the DMA BD buffer in bytes
+  */
 int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 {
 	int rc;
@@ -47,11 +55,11 @@ int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 
 	params.rx_bd_space_base = MEM_BASE_ADDR;
 	params.rx_bd_space_high = params.rx_bd_space_base + MEM_REGION_BD_SIZE;
-	params.tx_bd_space_base = params.rx_bd_space_high + 1; 
+	params.tx_bd_space_base = params.rx_bd_space_high + 1;
 	params.tx_bd_space_high = params.tx_bd_space_base + MEM_REGION_BD_SIZE;
-	params.tx_buffer_base   = params.tx_bd_space_high + 1; 
+	params.tx_buffer_base   = params.tx_bd_space_high + 1;
 	params.tx_buffer_high   = params.tx_buffer_base + MEM_REGION_BUF_SIZE;
-	params.rx_buffer_base   = params.tx_buffer_high + 1; 
+	params.rx_buffer_base   = params.tx_buffer_high + 1;
 	params.rx_buffer_high   = params.rx_buffer_base + MEM_REGION_BUF_SIZE;
 	params.bd_buf_size      = BD_BUF_SIZE;
 	params.coalesce_count   = 1;
@@ -87,7 +95,7 @@ int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 	}
 
 	gic_enable();
-	
+
 	printf("Done!\r\n");
 	printf("tx_bds : %d, rx_bds %d, rx_packets %d\r\n",tx_bd_count,rx_bd_count,rx_pkt_count);
 	if(error){
@@ -95,7 +103,7 @@ int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 		return XST_FAILURE;
 	}
 	printf("Test successful\r\n\n");
-	
+
 	axisDmaCtrl_disable(&intc);
 
 	return XST_SUCCESS;
