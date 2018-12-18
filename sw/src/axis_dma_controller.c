@@ -49,15 +49,15 @@ static void axisDmaCtrl_emptyParamsStruct(struct axisDmaCtrl_params * in);
 /************************** Variable Definitions *****************************/
 static XAxiDma axiDma;
 
-static tx_cb_t _tx_cb = NULL;
-static rx_cb_t _rx_cb = NULL;
+static dma_tx_cb_t _tx_cb = NULL;
+static dma_rx_cb_t _rx_cb = NULL;
 static struct axisDmaCtrl_params params;
 
 
 int axisDmaCtrl_init(struct axisDmaCtrl_params *paramsIn,
 	XScuGic * intcInstancePtr,
-	rx_cb_t rxCb,
-	tx_cb_t txCb
+	dma_rx_cb_t rxCb,
+	dma_tx_cb_t txCb
 	)
 {
 	int rc;
@@ -151,7 +151,7 @@ void axisDmaCtrl_disable(XScuGic * intcInstancePtr)
 	axisDmaCtrl_emptyParamsStruct(&params);
 }
 
-int axisDmaCtrl_register_tx_cb(tx_cb_t cb)
+int axisDmaCtrl_register_tx_cb(dma_tx_cb_t cb)
 {
 	if (cb == NULL)
 		return XST_FAILURE;
@@ -161,7 +161,7 @@ int axisDmaCtrl_register_tx_cb(tx_cb_t cb)
 	return XST_SUCCESS;
 }
 
-int axisDmaCtrl_register_rx_cb(rx_cb_t cb)
+int axisDmaCtrl_register_rx_cb(dma_rx_cb_t cb)
 {
 	if (cb == NULL)
 		return XST_FAILURE;
@@ -556,6 +556,7 @@ static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr)
 {
 	int rc;
 
+#if 0
 	XScuGic_Config *intcConfig;
 
 	/*
@@ -572,7 +573,7 @@ static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr)
 	if (rc != XST_SUCCESS) {
 		return XST_FAILURE;
 	}
-
+#endif
 
 	if (params.txEn) {
 		XAxiDma_BdRing *txRingPtr = XAxiDma_GetTxRing(&axiDma);
@@ -599,6 +600,7 @@ static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr)
 	}
 
 
+#if 0
 	/* Enable interrupts from the hardware */
 	Xil_ExceptionInit();
 	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT,
@@ -606,7 +608,7 @@ static int axisDmaCtrl_setupIntrSystem(XScuGic * intcInstancePtr)
 			(void *)intcInstancePtr);
 
 	Xil_ExceptionEnable();
-
+#endif
 	return XST_SUCCESS;
 }
 

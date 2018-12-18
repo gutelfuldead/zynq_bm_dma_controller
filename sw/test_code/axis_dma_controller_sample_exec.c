@@ -28,6 +28,8 @@ static int pkt_bytes_rx = 0;
 static XScuGic intc;
 static uint8_t txPkt[1024*1024];
 
+static int gic_init(void);
+static void gic_enable(void);
 static void tx_callback(void);
 static void rx_callback(uint32_t buf_addr, uint32_t buf_len);
 
@@ -73,18 +75,19 @@ int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 	for(i=0; i<MAX_PKT_SIZE; i++)
 		txPkt[i] = i % 255;
 
+	rc = gic_init();
+	if (rc)
+		return -1;
+
+	/* DMA Setup */
 	rc = axisDmaCtrl_init(&params, &intc, rx_callback, tx_callback);
 	if(rc){
 		printf("axisDmaCtrl_init failed!\r\n");
 		return XST_FAILURE;
 	}
 
-	while(rx_pkt_count < numTestPkts && !error){
-		rc = axisDmaCtrl_sendPackets(&txPkt[0], MAX_PKT_SIZE);
-		if(rc != XST_SUCCESS && rc != E_AXISDMA_NOBDS)
-			return XST_FAILURE;
-		// sleep(1);
-	}
+	gic_enable();
+	
 	printf("Done!\r\n");
 	printf("tx_bds : %d, rx_bds %d, rx_packets %d\r\n",tx_bd_count,rx_bd_count,rx_pkt_count);
 	if(error){
@@ -96,6 +99,37 @@ int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 	axisDmaCtrl_disable(&intc);
 
 	return XST_SUCCESS;
+}
+
+static int gic_init(void)
+{
+	int rc;
+	XScuGic_Config *intcConfig;
+	/*
+  	 * Initialize the interrupt controller driver so that it is ready to
+  	 * use.
+  	 */
+	intcConfig = XScuGic_LookupConfig(DMA_DEV_ID);
+	if (NULL == intcConfig) {
+		return XST_FAILURE;
+	}
+
+	rc = XScuGic_CfgInitialize(&intc, intcConfig,
+					intcConfig->CpuBaseAddress);
+	if (rc != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+	return 0;
+}
+
+static void gic_enable(void)
+{
+	/* Enable interrupts from the hardware */
+	Xil_ExceptionInit();
+	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT,
+			(Xil_ExceptionHandler)XScuGic_InterruptHandler,
+			(void *)&intc);
+	Xil_ExceptionEnable();
 }
 
 static void tx_callback(void)

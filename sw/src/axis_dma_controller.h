@@ -20,12 +20,12 @@
  * @param buf_addr provides memory offset of returned buffer
  * @param buf_len  provides length of returned buffer in bytes
  */
-typedef void (*rx_cb_t)(uint32_t buf_addr, uint32_t buf_len);
+typedef void (*dma_rx_cb_t)(uint32_t buf_addr, uint32_t buf_len);
 
 /**
  * TX Callback Type
  */
-typedef void (*tx_cb_t)(void);
+typedef void (*dma_tx_cb_t)(void);
 
 /**
  * @brief      Structure used to pass all configuration parameters 
@@ -60,7 +60,7 @@ struct axisDmaCtrl_params{
  *
  * @return     success on valid memory address (not null)
  */
-int axisDmaCtrl_register_tx_cb(tx_cb_t cb);
+int axisDmaCtrl_register_tx_cb(dma_tx_cb_t cb);
 
 /**
  * @brief      Changes the RX Callback on the fly
@@ -69,7 +69,7 @@ int axisDmaCtrl_register_tx_cb(tx_cb_t cb);
  *
  * @return     success on valid memory address (not null)
  */
-int axisDmaCtrl_register_rx_cb(rx_cb_t cb);
+int axisDmaCtrl_register_rx_cb(dma_rx_cb_t cb);
 
 /**
  * @brief      Initializes DMA system. Registers TX and RX callback functions.
@@ -84,8 +84,8 @@ int axisDmaCtrl_register_rx_cb(rx_cb_t cb);
  */
 int axisDmaCtrl_init(struct axisDmaCtrl_params *params, 
 	XScuGic * IntcInstancePtr,
-	rx_cb_t rxCb,
-	tx_cb_t txCb);
+	dma_rx_cb_t rxCb,
+	dma_tx_cb_t txCb);
 
 /**
  * @brief      Removes DMA interrupts from the GIC. Clears specified memory
