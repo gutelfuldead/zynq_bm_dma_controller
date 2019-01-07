@@ -95,6 +95,8 @@ int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 	}
 
 	gic_enable();
+	
+	while (rx_pkt_count < numTestPkts){}
 
 	printf("Done!\r\n");
 	printf("tx_bds : %d, rx_bds %d, rx_packets %d\r\n",tx_bd_count,rx_bd_count,rx_pkt_count);
