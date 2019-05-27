@@ -1,22 +1,20 @@
 /**
- * @brief
- * @author Jason Gutel (github.com/gutelfuldead)
+ * @brief sample exec for using the axis_dma_controller api
  */
-
 #include "stdio.h"
 #include "stdlib.h"
 #include "axis_dma_controller.h"
 
-#define MEM_BASE_ADDR		(XPAR_PS7_DDR_0_S_AXI_BASEADDR + 0x1000000) /* 0x00100000 - 0x001fffff */
+#define MEM_BASE_ADDR   		(XPAR_PS7_DDR_0_S_AXI_BASEADDR + 0x1000000) /* 0x00100000 - 0x001fffff */
 #define MEM_REGION_BD_SIZE      (0x0000FFF)
 #define MEM_REGION_BUF_SIZE     (0x0001FFF)
 int BD_BUF_SIZE;
 int MAX_PKT_SIZE;
 
-#define DMA_DEV_ID	   XPAR_AXIDMA_0_DEVICE_ID
+#define DMA_DEV_ID	       XPAR_AXIDMA_0_DEVICE_ID
 #define XScuGic_DEVICE_ID  XPAR_SCUGIC_SINGLE_DEVICE_ID
-#define RX_INTR_ID	   XPAR_FABRIC_AXIDMA_0_S2MM_INTROUT_VEC_ID
-#define TX_INTR_ID	   XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_VEC_ID
+#define RX_INTR_ID	       XPAR_FABRIC_AXI_DMA_0_S2MM_INTROUT_INTR
+#define TX_INTR_ID   	   XPAR_FABRIC_AXI_DMA_0_MM2S_INTROUT_INTR
 
 static int tx_bd_count;
 static int rx_bd_count;
@@ -33,18 +31,11 @@ static void gic_enable(void);
 static void tx_callback(void);
 static void rx_callback(uint32_t buf_addr, uint32_t buf_len);
 
-/**
-  * This application exec sends toy data through the DMA engine --> FIFO --> DMA Engine and
-  * checks that the data is received in order with no errors
-  *
-  * @param numTestPkts Number of packets to run through before claiming success/failure
-  * @param pktSize     Number of bytes in a single packet
-  * @param bufSize     Size of the DMA BD buffer in bytes
-  */
 int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 {
 	int rc;
 	struct axisDmaCtrl_params params;
+    int old_tx_bd_count;
 	int i;
 
 	printf("%s : Starting w/ %d packets of %d bytes using buffers of %d bytes\r\n",
@@ -73,12 +64,13 @@ int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 
 	axisDmaCtrl_printParams(&params);
 
-	tx_bd_count  = 0;
-	rx_bd_count  = 0;
-	rx_pkt_count = 0;
-	error    = 0;
-	pkt_complete = 1;
-	pkt_bytes_rx = 0;
+	tx_bd_count     = 0;
+	old_tx_bd_count = 0;
+	rx_bd_count     = 0;
+	rx_pkt_count    = 0;
+	error           = 0;
+	pkt_complete    = 1;
+	pkt_bytes_rx    = 0;
 
 	for(i=0; i<MAX_PKT_SIZE; i++)
 		txPkt[i] = i % 255;
@@ -95,8 +87,24 @@ int axis_dma_controller_sample_exec(int numTestPkts, int pktSize, int bufSize)
 	}
 
 	gic_enable();
-	
-	while (rx_pkt_count < numTestPkts){}
+
+    int printCount = 0;
+	while(rx_pkt_count < numTestPkts){ 
+        if(axisDmaCtrl_getAvailTxBds() > 5) {
+            rc = axisDmaCtrl_sendPackets(&txPkt, MAX_PKT_SIZE);
+            if (rc)
+                printf("ERROR SENDING PACKET\n\r");
+        }
+        if(tx_bd_count != old_tx_bd_count){
+            old_tx_bd_count = tx_bd_count;
+            if(printCount++ % 10000 == 0)
+                printf("tx : %d (avail %d) rx : %d (avail %d)\n\r",
+                        tx_bd_count,
+                        axisDmaCtrl_getAvailTxBds(),
+                        rx_bd_count,
+                        axisDmaCtrl_getAvailRxBds());
+        }
+    }
 
 	printf("Done!\r\n");
 	printf("tx_bds : %d, rx_bds %d, rx_packets %d\r\n",tx_bd_count,rx_bd_count,rx_pkt_count);
