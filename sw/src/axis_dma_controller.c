@@ -351,6 +351,8 @@ static void axisDmaCtrl_txIrqBdHandler(XAxiDma_BdRing * txRingPtr)
 
     /* Get all processed BDs from hardware */
     bdCount = XAxiDma_BdRingFromHw(txRingPtr, XAXIDMA_ALL_BDS, &bdPtr);
+    if (bdCount < 1)
+        return;
 
     /* Handle the BDs */
     bdCurPtr = bdPtr;
